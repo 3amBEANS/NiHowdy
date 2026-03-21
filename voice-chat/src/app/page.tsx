@@ -4,13 +4,15 @@ export default function Home() {
   return (
     <main className="min-h-screen flex items-center justify-center p-6">
       <VoiceChat
-        language="zh"
+        language="en"
         mission={{
-          description: 'Find out where Shibuya Station is located.',
-          hint: 'Try asking: "渋谷駅はどこですか？"',
-          // This is what the AI holds — not shown to the user
+          description: 'Find out which district of Tokyo Shibuya Station is in.',
+          hint: 'Ask the bot directly where Shibuya Station is!',
           missionContext:
-            'The learner is trying to find out the address / location of Shibuya Station in Tokyo. You know it is in Shibuya, Shibuya City, Tokyo (渋谷区渋谷). Reveal this naturally through conversation when they ask.',
+            'The learner wants to know which district Shibuya Station is located in. You know it is in Shibuya City (Shibuya-ku), Tokyo. Make them ask naturally — drop the answer once they ask.',
+          answer: 'Shibuya City (Shibuya-ku), Tokyo',
+          wrongChoices: ['Shinjuku City (Shinjuku-ku), Tokyo', 'Harajuku, Shibuya-ku, Tokyo', 'Akihabara, Chiyoda-ku, Tokyo'],
+          xpReward: 150,
         }}
       />
     </main>

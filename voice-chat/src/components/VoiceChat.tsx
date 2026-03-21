@@ -13,6 +13,8 @@ type Status =
   | 'playing'
   | 'error';
 
+type QuizPhase = 'none' | 'quiz' | 'correct' | 'wrong';
+
 interface WordResult {
   word: string;
   confidence: number;
@@ -36,31 +38,32 @@ interface ConversationTurn {
 }
 
 export interface Mission {
-  /** Shown to the learner as the goal */
+  /** Shown to the learner as their goal */
   description: string;
-  /** Optional hint shown below the description */
+  /** Optional visible hint */
   hint?: string;
-  /**
-   * Context passed to the AI so it knows what information to hold back and
-   * eventually reveal. Keep this out of the UI — it's for the system prompt only.
-   */
+  /** Sent to the AI — what info to hold back and eventually reveal */
   missionContext?: string;
+  /** The correct answer shown in the quiz (required for quiz to appear) */
+  answer?: string;
+  /** Exactly 3 plausible wrong answers */
+  wrongChoices?: [string, string, string];
+  /** Base XP awarded for completing the mission (default 100) */
+  xpReward?: number;
 }
 
 export interface VoiceChatProps {
   /** BCP-47 language code: 'en' | 'zh' | 'ja' | 'ko' | 'es' | 'fr' */
   language?: string;
-  /** Human-readable language name, e.g. "Mandarin Chinese" */
+  /** Human-readable language name shown in the badge */
   languageName?: string;
-  /** Optional mission / goal for the session */
   mission?: Mission;
-  /** API endpoint to call. Defaults to /api/voice */
+  /** Defaults to /api/voice */
   apiEndpoint?: string;
-  /** Called when the AI decides the mission is complete */
   onMissionComplete?: (reason: string) => void;
 }
 
-// ── constants ──────────────────────────────────────────────────────────────
+// ── helpers ────────────────────────────────────────────────────────────────
 
 const LANG_NAMES: Record<string, string> = {
   en: 'English',
@@ -71,8 +74,34 @@ const LANG_NAMES: Record<string, string> = {
   fr: 'French',
 };
 
-// Confidence below this threshold → flag as likely pronunciation issue
-const CONFIDENCE_THRESHOLD = 0.75;
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function calcReward(
+  base: number,
+  turns: number,
+  pronunciationIssues: number
+): { xp: number; stars: number } {
+  let mult = 1;
+  if (turns <= 3) mult += 0.5;
+  else if (turns <= 5) mult += 0.25;
+  if (pronunciationIssues === 0) mult += 0.25;
+  else if (pronunciationIssues <= 2) mult += 0.1;
+
+  const xp = Math.round(base * mult);
+
+  let stars = 1;
+  if (turns <= 5 && pronunciationIssues <= 3) stars = 2;
+  if (turns <= 3 && pronunciationIssues <= 1) stars = 3;
+
+  return { xp, stars };
+}
 
 // ── component ──────────────────────────────────────────────────────────────
 
@@ -84,29 +113,38 @@ export function VoiceChat({
   onMissionComplete,
 }: VoiceChatProps) {
   const langLabel = languageName ?? LANG_NAMES[language] ?? language;
+  const hasQuiz = !!(mission?.answer && mission?.wrongChoices?.length === 3);
 
+  // ── core state ───────────────────────────────────────────────────────────
   const [status, setStatus] = useState<Status>('idle');
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
-  // Accumulated word bank across the whole session
   const [wordBank, setWordBank] = useState<WordResult[]>([]);
   const [missionDone, setMissionDone] = useState(false);
   const [missionReason, setMissionReason] = useState('');
   const [error, setError] = useState('');
 
+  // ── quiz state ───────────────────────────────────────────────────────────
+  const [quizPhase, setQuizPhase] = useState<QuizPhase>('none');
+  const [shuffledChoices, setShuffledChoices] = useState<string[]>([]);
+  const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
+  const [xpEarned, setXpEarned] = useState(0);
+  const [starsEarned, setStarsEarned] = useState(0);
+
+  // ── refs ──────────────────────────────────────────────────────────────────
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const mimeTypeRef = useRef('audio/webm');
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const conversationEndRef = useRef<HTMLDivElement | null>(null);
+  // Set to true when the API says missionComplete; quiz fires when audio ends
+  const pendingQuizRef = useRef(false);
 
-  // Derive history from turns for the API
-  const buildHistory = (currentTurns: ConversationTurn[]) =>
-    currentTurns.flatMap((t) => [
-      { role: 'user' as const, content: t.userText },
-      { role: 'model' as const, content: t.aiText },
+  const buildHistory = (t: ConversationTurn[]) =>
+    t.flatMap((turn) => [
+      { role: 'user' as const, content: turn.userText },
+      { role: 'model' as const, content: turn.aiText },
     ]);
 
-  // Auto-scroll conversation
   useEffect(() => {
     conversationEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [turns]);
@@ -160,7 +198,6 @@ export function VoiceChat({
       form.append('audio', blob, 'recording.webm');
       form.append('language', language);
       if (mission?.missionContext) form.append('missionContext', mission.missionContext);
-      // Send current conversation history so the AI has context
       form.append('history', JSON.stringify(buildHistory(turns)));
 
       let res: Response;
@@ -181,7 +218,6 @@ export function VoiceChat({
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      // Will be filled as SSE events arrive
       let pendingTurn: Partial<ConversationTurn> = {};
 
       while (true) {
@@ -220,42 +256,51 @@ export function VoiceChat({
             case 'done': {
               if (!ev.audio) break;
 
-              // Commit the turn
               const completedTurn: ConversationTurn = {
                 userText: pendingTurn.userText ?? '',
                 aiText: pendingTurn.aiText ?? ev.response ?? '',
-                pronunciationIssues: ev.pronunciationIssues ?? pendingTurn.pronunciationIssues ?? [],
+                pronunciationIssues:
+                  ev.pronunciationIssues ?? pendingTurn.pronunciationIssues ?? [],
               };
               setTurns((prev) => [...prev, completedTurn]);
 
-              // Add new low-confidence words to the word bank (dedupe by word)
               if (ev.pronunciationIssues?.length) {
                 setWordBank((prev) => {
                   const existing = new Set(prev.map((w) => w.word));
-                  const newWords = ev.pronunciationIssues!.filter(
-                    (w) => !existing.has(w.word)
-                  );
-                  return [...prev, ...newWords];
+                  return [
+                    ...prev,
+                    ...ev.pronunciationIssues!.filter((w) => !existing.has(w.word)),
+                  ];
                 });
               }
 
-              // Mission check
               if (ev.missionComplete && !missionDone) {
                 setMissionDone(true);
                 setMissionReason(ev.missionReason ?? '');
                 onMissionComplete?.(ev.missionReason ?? '');
+                if (hasQuiz) pendingQuizRef.current = true;
               }
 
               setStatus('playing');
               const audio = new Audio(`data:audio/mpeg;base64,${ev.audio}`);
               audioRef.current = audio;
-              audio.onended = () => setStatus('idle');
+              audio.onended = () => {
+                setStatus('idle');
+                // Launch the quiz after the AI finishes speaking
+                if (pendingQuizRef.current && mission?.answer && mission?.wrongChoices) {
+                  pendingQuizRef.current = false;
+                  setShuffledChoices(
+                    shuffle([mission.answer, ...mission.wrongChoices])
+                  );
+                  setQuizPhase('quiz');
+                }
+              };
               audio.onerror = () => {
-                setError('Failed to play audio response.');
+                setError('Failed to play audio.');
                 setStatus('error');
               };
               audio.play().catch(() => {
-                setError('Browser blocked autoplay — tap the play button to hear the response.');
+                setError('Browser blocked autoplay — tap to retry.');
                 setStatus('error');
               });
               break;
@@ -269,10 +314,49 @@ export function VoiceChat({
         }
       }
     },
-    [language, mission, turns, apiEndpoint, missionDone, onMissionComplete]
+    [language, mission, turns, apiEndpoint, missionDone, hasQuiz, onMissionComplete]
   );
 
-  // ── button handler ────────────────────────────────────────────────────────
+  // ── quiz ──────────────────────────────────────────────────────────────────
+
+  const handleChoice = (choice: string) => {
+    if (quizPhase !== 'quiz') return;
+    setSelectedChoice(choice);
+
+    if (choice === mission?.answer) {
+      const { xp, stars } = calcReward(
+        mission.xpReward ?? 100,
+        turns.length,
+        wordBank.length
+      );
+      setXpEarned(xp);
+      setStarsEarned(stars);
+      setQuizPhase('correct');
+    } else {
+      setQuizPhase('wrong');
+    }
+  };
+
+  const handleRetry = () => {
+    setQuizPhase('none');
+    setSelectedChoice(null);
+    setMissionDone(false);
+    pendingQuizRef.current = false;
+  };
+
+  const handleReset = () => {
+    setTurns([]);
+    setWordBank([]);
+    setMissionDone(false);
+    setMissionReason('');
+    setQuizPhase('none');
+    setSelectedChoice(null);
+    setStatus('idle');
+    setError('');
+    pendingQuizRef.current = false;
+  };
+
+  // ── button ────────────────────────────────────────────────────────────────
 
   const handleButton = () => {
     if (status === 'idle' || status === 'error') startRecording();
@@ -284,60 +368,75 @@ export function VoiceChat({
   };
 
   const isProcessing = ['transcribing', 'thinking', 'speaking'].includes(status);
-  const canPress = !isProcessing;
 
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col w-full max-w-lg gap-4">
-      {/* ── Language badge ───────────────────────────────────────── */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs uppercase tracking-widest text-gray-500 font-medium">
-          Practicing
-        </span>
-        <span className="bg-indigo-900/60 border border-indigo-700/50 text-indigo-300 text-xs font-semibold px-2.5 py-0.5 rounded-full">
-          {langLabel}
-        </span>
+    <div className="relative flex flex-col w-full max-w-lg gap-4">
+
+      {/* ── Language badge ────────────────────────────────────── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-xs uppercase tracking-widest text-gray-500 font-medium">
+            Practicing
+          </span>
+          <span className="bg-indigo-900/60 border border-indigo-700/50 text-indigo-300 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+            {langLabel}
+          </span>
+        </div>
+        {turns.length > 0 && (
+          <span className="text-xs text-gray-600">
+            Turn {turns.length}
+            {turns.length <= 3 && (
+              <span className="text-emerald-500 ml-1">🔥</span>
+            )}
+          </span>
+        )}
       </div>
 
-      {/* ── Mission card ─────────────────────────────────────────── */}
+      {/* ── Mission card ──────────────────────────────────────── */}
       {mission && (
         <div
-          className={`rounded-2xl p-4 border transition-colors ${
-            missionDone
+          className={`rounded-2xl p-4 border transition-all duration-500 ${
+            missionDone && quizPhase === 'none'
               ? 'bg-emerald-950/60 border-emerald-600/50'
               : 'bg-amber-950/40 border-amber-700/40'
           }`}
         >
           <div className="flex items-start gap-3">
-            <span className="text-xl">{missionDone ? '✅' : '🎯'}</span>
-            <div>
+            <span className="text-xl flex-shrink-0">
+              {missionDone && quizPhase === 'none' ? '✅' : '🎯'}
+            </span>
+            <div className="flex-1 min-w-0">
               <p className="text-xs uppercase tracking-widest text-amber-500/80 mb-1">
-                {missionDone ? 'Mission complete!' : 'Mission'}
+                {missionDone && quizPhase === 'none' ? 'Mission complete!' : 'Your mission'}
               </p>
               <p className="text-gray-100 text-sm font-medium">{mission.description}</p>
               {mission.hint && !missionDone && (
-                <p className="text-gray-500 text-xs mt-1">Hint: {mission.hint}</p>
+                <p className="text-gray-600 text-xs mt-1">💡 {mission.hint}</p>
               )}
-              {missionDone && missionReason && (
+              {missionDone && missionReason && quizPhase === 'none' && (
                 <p className="text-emerald-400 text-xs mt-1">{missionReason}</p>
+              )}
+              {hasQuiz && !missionDone && (
+                <p className="text-amber-700/60 text-xs mt-2">
+                  ✨ Quiz unlocks when you find the answer
+                </p>
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Conversation history ──────────────────────────────────── */}
+      {/* ── Conversation ──────────────────────────────────────── */}
       {turns.length > 0 && (
-        <div className="flex flex-col gap-3 max-h-80 overflow-y-auto pr-1">
+        <div className="flex flex-col gap-3 max-h-72 overflow-y-auto pr-1">
           {turns.map((turn, i) => (
-            <div key={i} className="flex flex-col gap-2">
-              {/* User bubble */}
+            <div key={i} className="flex flex-col gap-1.5">
               <div className="self-end max-w-[85%]">
                 <div className="bg-indigo-700/40 border border-indigo-600/30 rounded-2xl rounded-br-sm px-4 py-2.5">
                   <p className="text-gray-100 text-sm">{turn.userText}</p>
                 </div>
-                {/* Pronunciation issues for this turn */}
                 {turn.pronunciationIssues.length > 0 && (
                   <div className="mt-1 flex flex-wrap gap-1 justify-end">
                     {turn.pronunciationIssues.map((w, j) => (
@@ -352,8 +451,6 @@ export function VoiceChat({
                   </div>
                 )}
               </div>
-
-              {/* AI bubble */}
               <div className="self-start max-w-[85%]">
                 <div className="bg-gray-800/60 border border-gray-700/50 rounded-2xl rounded-bl-sm px-4 py-2.5">
                   <p className="text-gray-100 text-sm">{turn.aiText}</p>
@@ -365,103 +462,226 @@ export function VoiceChat({
         </div>
       )}
 
-      {/* ── Mic button + status ───────────────────────────────────── */}
-      <div className="flex flex-col items-center gap-3 py-2">
-        <div className="relative">
-          {status === 'recording' && (
-            <span className="absolute inset-0 rounded-full bg-red-500/40 animate-ping" />
-          )}
-          <button
-            onClick={handleButton}
-            disabled={!canPress}
-            className={`relative w-24 h-24 rounded-full text-4xl font-bold text-white shadow-xl transition-all duration-200 ${
-              status === 'recording'
-                ? 'bg-red-500 hover:bg-red-400 scale-110'
+      {/* ── Mic button + status ───────────────────────────────── */}
+      {quizPhase === 'none' && (
+        <div className="flex flex-col items-center gap-3 py-2">
+          <div className="relative">
+            {status === 'recording' && (
+              <span className="absolute inset-0 rounded-full bg-red-500/40 animate-ping" />
+            )}
+            <button
+              onClick={handleButton}
+              disabled={isProcessing}
+              className={`relative w-24 h-24 rounded-full text-4xl font-bold text-white shadow-xl transition-all duration-200 ${
+                status === 'recording'
+                  ? 'bg-red-500 hover:bg-red-400 scale-110'
+                  : isProcessing
+                  ? 'bg-gray-600 cursor-not-allowed opacity-60'
+                  : status === 'playing'
+                  ? 'bg-emerald-500 hover:bg-emerald-400'
+                  : status === 'error'
+                  ? 'bg-orange-500 hover:bg-orange-400'
+                  : 'bg-indigo-600 hover:bg-indigo-500'
+              }`}
+            >
+              {status === 'recording'
+                ? '⏹'
                 : isProcessing
-                ? 'bg-gray-600 cursor-not-allowed opacity-60'
+                ? '⋯'
                 : status === 'playing'
-                ? 'bg-emerald-500 hover:bg-emerald-400'
+                ? '🔊'
                 : status === 'error'
-                ? 'bg-orange-500 hover:bg-orange-400'
-                : 'bg-indigo-600 hover:bg-indigo-500'
-            }`}
-          >
-            {status === 'recording'
-              ? '⏹'
-              : isProcessing
-              ? '⋯'
-              : status === 'playing'
-              ? '🔊'
-              : status === 'error'
-              ? '↺'
-              : '🎙️'}
-          </button>
-        </div>
-
-        {/* Step progress bar */}
-        {isProcessing && (
-          <div className="flex gap-1.5">
-            {(['transcribing', 'thinking', 'speaking'] as const).map((step) => (
-              <div
-                key={step}
-                className={`h-1 w-14 rounded-full transition-colors duration-500 ${
-                  status === step
-                    ? 'bg-indigo-400'
-                    : (status === 'thinking' && step === 'transcribing') ||
-                      (status === 'speaking' && step !== 'speaking')
-                    ? 'bg-indigo-700'
-                    : 'bg-gray-700'
-                }`}
-              />
-            ))}
+                ? '↺'
+                : '🎙️'}
+            </button>
           </div>
-        )}
 
-        <p className="text-gray-500 text-xs min-h-[1rem]">
-          {status === 'idle' && 'Tap to speak'}
-          {status === 'recording' && 'Listening… tap to stop'}
-          {status === 'transcribing' && 'Transcribing…'}
-          {status === 'thinking' && 'Thinking…'}
-          {status === 'speaking' && 'Generating audio…'}
-          {status === 'playing' && 'Playing — tap to stop'}
-          {status === 'error' && 'Tap to retry'}
-        </p>
-      </div>
+          {isProcessing && (
+            <div className="flex gap-1.5">
+              {(['transcribing', 'thinking', 'speaking'] as const).map((step) => (
+                <div
+                  key={step}
+                  className={`h-1 w-14 rounded-full transition-colors duration-500 ${
+                    status === step
+                      ? 'bg-indigo-400'
+                      : (status === 'thinking' && step === 'transcribing') ||
+                        (status === 'speaking' && step !== 'speaking')
+                      ? 'bg-indigo-700'
+                      : 'bg-gray-700'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
 
-      {/* ── Error ────────────────────────────────────────────────── */}
-      {status === 'error' && error && (
+          <p className="text-gray-500 text-xs min-h-[1rem]">
+            {status === 'idle' && (turns.length === 0 ? 'Tap to speak' : 'Tap to continue')}
+            {status === 'recording' && 'Listening… tap to stop'}
+            {status === 'transcribing' && 'Transcribing…'}
+            {status === 'thinking' && 'Thinking…'}
+            {status === 'speaking' && 'Generating audio…'}
+            {status === 'playing' && 'Playing — tap to stop'}
+            {status === 'error' && 'Tap to retry'}
+          </p>
+        </div>
+      )}
+
+      {/* ── Error ─────────────────────────────────────────────── */}
+      {status === 'error' && error && quizPhase === 'none' && (
         <div className="bg-red-950/50 border border-red-700/40 rounded-xl p-3">
           <p className="text-red-300 text-sm">{error}</p>
         </div>
       )}
 
-      {/* ── Pronunciation word bank ───────────────────────────────── */}
-      {wordBank.length > 0 && (
-        <details className="group" open={false}>
-          <summary className="cursor-pointer list-none flex items-center gap-2 text-xs text-gray-500 hover:text-gray-400 select-none">
+      {/* ── Word bank ─────────────────────────────────────────── */}
+      {wordBank.length > 0 && quizPhase === 'none' && (
+        <details className="group">
+          <summary className="cursor-pointer list-none flex items-center gap-2 text-xs text-gray-600 hover:text-gray-400 select-none">
             <span className="group-open:rotate-90 inline-block transition-transform">▶</span>
-            📚 Pronunciation word bank ({wordBank.length} word{wordBank.length !== 1 ? 's' : ''} to review)
+            📚 Word bank — {wordBank.length} to review
           </summary>
-          <div className="mt-2 bg-gray-900/60 border border-gray-700/40 rounded-xl p-3">
-            <p className="text-xs text-gray-600 mb-2">
-              Words where Deepgram had low confidence — worth practising:
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {wordBank.map((w, i) => (
-                <span
-                  key={i}
-                  title={`Confidence: ${Math.round(w.confidence * 100)}%`}
-                  className="flex items-center gap-1 text-sm bg-gray-800 border border-gray-700 text-gray-300 px-2.5 py-1 rounded-lg"
-                >
-                  {w.word}
-                  <span className="text-xs text-gray-600">
-                    {Math.round(w.confidence * 100)}%
-                  </span>
-                </span>
-              ))}
-            </div>
+          <div className="mt-2 bg-gray-900/60 border border-gray-700/40 rounded-xl p-3 flex flex-wrap gap-2">
+            {wordBank.map((w, i) => (
+              <span
+                key={i}
+                title={`Confidence: ${Math.round(w.confidence * 100)}%`}
+                className="flex items-center gap-1 text-sm bg-gray-800 border border-gray-700 text-gray-300 px-2.5 py-1 rounded-lg"
+              >
+                {w.word}
+                <span className="text-xs text-gray-600">{Math.round(w.confidence * 100)}%</span>
+              </span>
+            ))}
           </div>
         </details>
+      )}
+
+      {/* ════════════════════════════════════════════════════════ */}
+      {/* ── Quiz overlay ──────────────────────────────────────── */}
+      {/* ════════════════════════════════════════════════════════ */}
+
+      {quizPhase === 'quiz' && (
+        <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="text-center">
+            <p className="text-2xl mb-1">🧠</p>
+            <h3 className="text-white font-bold text-lg">Pop Quiz!</h3>
+            <p className="text-gray-400 text-sm">You found the answer — now prove it.</p>
+          </div>
+
+          <div className="bg-gray-800/40 border border-gray-700/50 rounded-2xl p-4">
+            <p className="text-gray-300 text-sm font-medium">{mission?.description}</p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {shuffledChoices.map((choice, i) => (
+              <button
+                key={i}
+                onClick={() => handleChoice(choice)}
+                className="w-full text-left px-4 py-3 rounded-xl border border-gray-700 bg-gray-800/50 hover:bg-indigo-900/40 hover:border-indigo-600 text-gray-200 text-sm transition-all duration-150 active:scale-[0.98]"
+              >
+                <span className="text-gray-500 mr-2 font-mono text-xs">
+                  {String.fromCharCode(65 + i)}
+                </span>
+                {choice}
+              </button>
+            ))}
+          </div>
+
+          <p className="text-center text-xs text-gray-600">
+            Turns taken: {turns.length} · Pronunciation flags: {wordBank.length}
+          </p>
+        </div>
+      )}
+
+      {/* ── Correct answer ────────────────────────────────────── */}
+      {quizPhase === 'correct' && (
+        <div className="flex flex-col items-center gap-5 py-4 animate-in fade-in zoom-in-95 duration-300">
+          <div className="text-6xl animate-bounce">🎉</div>
+
+          <div className="text-center">
+            <p className="text-white font-bold text-2xl mb-1">Correct!</p>
+            <p className="text-gray-400 text-sm">{mission?.answer}</p>
+          </div>
+
+          {/* Stars */}
+          <div className="flex gap-1 text-3xl">
+            {[1, 2, 3].map((s) => (
+              <span
+                key={s}
+                className={`transition-all duration-300 ${
+                  s <= starsEarned ? 'opacity-100 scale-110' : 'opacity-20 grayscale'
+                }`}
+                style={{ transitionDelay: `${s * 100}ms` }}
+              >
+                ⭐
+              </span>
+            ))}
+          </div>
+
+          {/* XP */}
+          <div className="bg-indigo-900/60 border border-indigo-700/50 rounded-2xl px-8 py-4 text-center">
+            <p className="text-indigo-300 text-xs uppercase tracking-widest mb-1">XP Earned</p>
+            <p className="text-white font-bold text-4xl">+{xpEarned}</p>
+          </div>
+
+          {/* Breakdown */}
+          <div className="w-full bg-gray-900/40 border border-gray-800 rounded-xl p-3 text-xs text-gray-500 flex justify-around">
+            <span>
+              Turns:{' '}
+              <span className={turns.length <= 3 ? 'text-emerald-400' : 'text-gray-400'}>
+                {turns.length} {turns.length <= 3 ? '🔥' : ''}
+              </span>
+            </span>
+            <span>
+              Pronunciation flags:{' '}
+              <span className={wordBank.length === 0 ? 'text-emerald-400' : 'text-orange-400'}>
+                {wordBank.length}
+              </span>
+            </span>
+          </div>
+
+          <button
+            onClick={handleReset}
+            className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-colors"
+          >
+            Play again
+          </button>
+        </div>
+      )}
+
+      {/* ── Wrong answer ──────────────────────────────────────── */}
+      {quizPhase === 'wrong' && (
+        <div className="flex flex-col items-center gap-5 py-4 animate-in fade-in zoom-in-95 duration-300">
+          <div className="text-5xl">😬</div>
+
+          <div className="text-center">
+            <p className="text-white font-bold text-xl mb-1">Not quite!</p>
+            <p className="text-gray-400 text-sm">
+              You picked: <span className="text-red-400">{selectedChoice}</span>
+            </p>
+          </div>
+
+          <div className="w-full bg-gray-800/50 border border-gray-700 rounded-xl p-4 text-sm text-gray-300">
+            Go back to the conversation and ask for more details — the answer is in there!
+          </div>
+
+          <div className="flex flex-col gap-2 w-full">
+            <button
+              onClick={handleRetry}
+              className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-colors"
+            >
+              Keep talking to the bot
+            </button>
+            <button
+              onClick={() => {
+                setQuizPhase('quiz');
+                setSelectedChoice(null);
+              }}
+              className="w-full py-3 rounded-xl border border-gray-700 hover:border-gray-600 text-gray-400 text-sm transition-colors"
+            >
+              Try the quiz again
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
