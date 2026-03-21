@@ -9,9 +9,8 @@ const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY!;
 const VOICE_ID = 'pNInz6obpgDQGcFmaJgB'; // Adam — works with multilingual v2
 
 // ── language config ────────────────────────────────────────────────────────
-// deepgramModel: nova-3 is English-optimised; nova-2 has better CJK support
 const LANG: Record<string, { code: string; model: string; name: string }> = {
-  en: { code: 'en',    model: 'nova-3', name: 'English' },
+  en: { code: 'en',    model: 'nova-2', name: 'English' },
   zh: { code: 'zh-CN', model: 'nova-2', name: 'Mandarin Chinese' },
   ja: { code: 'ja',    model: 'nova-2', name: 'Japanese' },
   ko: { code: 'ko',    model: 'nova-2', name: 'Korean' },
@@ -59,7 +58,8 @@ async function transcribeAudio(
       method: 'POST',
       headers: {
         Authorization: `Token ${DEEPGRAM_API_KEY}`,
-        'Content-Type': audio.type || 'audio/webm',
+        // Strip codec params — Deepgram only wants the base MIME type
+        'Content-Type': (audio.type || 'audio/webm').split(';')[0],
       },
       body: buf,
     }
@@ -70,6 +70,7 @@ async function transcribeAudio(
   const data = await res.json();
   const alt = data?.results?.channels?.[0]?.alternatives?.[0];
   const transcript: string = (alt?.transcript ?? '').trim();
+  console.log('[deepgram] transcript:', JSON.stringify(transcript), '| duration:', data?.metadata?.duration);
   const words: WordResult[] = (alt?.words ?? []).map(
     (w: { punctuated_word?: string; word: string; confidence: number }) => ({
       word: w.punctuated_word ?? w.word,
