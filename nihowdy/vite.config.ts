@@ -9,4 +9,10 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  server: {
+    // Forward /api calls to the voice-chat Next.js dev server
+    proxy: {
+      '/api': 'http://localhost:3000',
+    },
+  },
 })
