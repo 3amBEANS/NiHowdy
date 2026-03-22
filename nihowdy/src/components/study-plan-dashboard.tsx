@@ -1,5 +1,6 @@
 
 import { useState } from "react"
+import { Link } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/Button"
 import { Progress } from "@/components/ui/progress"
@@ -41,7 +42,7 @@ const weeklyPlan = [
     day: "Wednesday",
     date: "Mar 20",
     lessons: [
-      { id: 5, title: "Reading: Short Story", type: "reading", duration: "20 min", completed: false },
+      { id: 5, title: "Reading: Short Story", type: "reading", duration: "20 min", completed: false, path: "/lesson/reading-short-story" },
       { id: 6, title: "Writing Exercise", type: "writing", duration: "15 min", completed: false },
     ]
   },
@@ -58,7 +59,8 @@ const weeklyPlan = [
     date: "Mar 22",
     lessons: [
       { id: 9, title: "Review & Practice", type: "review", duration: "25 min", completed: false },
-      { id: 10, title: "Weekly Assessment", type: "assessment", duration: "15 min", completed: false },
+      { id: 10, title: "Weekly Assessment", type: "assessment", duration: "15 min", completed: false, path: "/assessment/weekly" },
+      { id: 11, title: "Challenge assessment - Ghost Writer", type: "ghost-writer", duration: "1 min", completed: false, path: "/assessment/ghost-writer" },
     ]
   },
 ]
@@ -79,6 +81,7 @@ const typeIcons: Record<string, React.ElementType> = {
   writing: PenTool,
   review: Sparkles,
   assessment: Trophy,
+  "ghost-writer": PenTool,
 }
 
 export function StudyPlanDashboard() {
@@ -262,6 +265,13 @@ export function StudyPlanDashboard() {
                   <div className="flex items-center gap-3">
                     {lesson.completed ? (
                       <CheckCircle2 className="h-6 w-6 text-primary" />
+                    ) : "path" in lesson && lesson.path ? (
+                      <Link to={lesson.path}>
+                        <Button size="sm" className="gap-1.5">
+                          Start
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </Link>
                     ) : (
                       <Button size="sm" className="gap-1.5">
                         Start

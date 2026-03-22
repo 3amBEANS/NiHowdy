@@ -1,0 +1,221 @@
+{
+  "meta": {
+    "version": "1.0",
+    "description": "Mock word bank for Chinese vocabulary. This will be replaced by database data later.",
+    "lastUpdated": "2025-03-22"
+  },
+  "words": [
+    {
+      "id": "wb-001",
+      "chinese": "你好",
+      "pinyin": "nǐ hǎo",
+      "english": "hello",
+      "partOfSpeech": "phrase",
+      "category": "greetings"
+    },
+    {
+      "id": "wb-002",
+      "chinese": "谢谢",
+      "pinyin": "xièxiè",
+      "english": "thank you",
+      "partOfSpeech": "phrase",
+      "category": "conversation"
+    },
+    {
+      "id": "wb-003",
+      "chinese": "再见",
+      "pinyin": "zàijiàn",
+      "english": "goodbye",
+      "partOfSpeech": "phrase",
+      "category": "greetings"
+    },
+    {
+      "id": "wb-004",
+      "chinese": "请",
+      "pinyin": "qǐng",
+      "english": "please",
+      "partOfSpeech": "phrase",
+      "category": "conversation"
+    },
+    {
+      "id": "wb-005",
+      "chinese": "对不起",
+      "pinyin": "duìbuqǐ",
+      "english": "sorry",
+      "partOfSpeech": "phrase",
+      "category": "conversation"
+    },
+    {
+      "id": "wb-006",
+      "chinese": "早上好",
+      "pinyin": "zǎoshang hǎo",
+      "english": "good morning",
+      "partOfSpeech": "phrase",
+      "category": "greetings"
+    },
+    {
+      "id": "wb-007",
+      "chinese": "水",
+      "pinyin": "shuǐ",
+      "english": "water",
+      "partOfSpeech": "noun",
+      "category": "food"
+    },
+    {
+      "id": "wb-008",
+      "chinese": "苹果",
+      "pinyin": "píngguǒ",
+      "english": "apple",
+      "partOfSpeech": "noun",
+      "category": "food"
+    },
+    {
+      "id": "wb-009",
+      "chinese": "米饭",
+      "pinyin": "mǐfàn",
+      "english": "rice",
+      "partOfSpeech": "noun",
+      "category": "food"
+    },
+    {
+      "id": "wb-010",
+      "chinese": "茶",
+      "pinyin": "chá",
+      "english": "tea",
+      "partOfSpeech": "noun",
+      "category": "food"
+    },
+    {
+      "id": "wb-011",
+      "chinese": "书",
+      "pinyin": "shū",
+      "english": "book",
+      "partOfSpeech": "noun",
+      "category": "objects"
+    },
+    {
+      "id": "wb-012",
+      "chinese": "桌子",
+      "pinyin": "zhuōzi",
+      "english": "table",
+      "partOfSpeech": "noun",
+      "category": "objects"
+    },
+    {
+      "id": "wb-013",
+      "chinese": "学习",
+      "pinyin": "xuéxí",
+      "english": "to study",
+      "partOfSpeech": "verb",
+      "category": "daily-routines"
+    },
+    {
+      "id": "wb-014",
+      "chinese": "吃",
+      "pinyin": "chī",
+      "english": "to eat",
+      "partOfSpeech": "verb",
+      "category": "daily-routines"
+    },
+    {
+      "id": "wb-015",
+      "chinese": "喝",
+      "pinyin": "hē",
+      "english": "to drink",
+      "partOfSpeech": "verb",
+      "category": "daily-routines"
+    },
+    {
+      "id": "wb-016",
+      "chinese": "学校",
+      "pinyin": "xuéxiào",
+      "english": "school",
+      "partOfSpeech": "noun",
+      "category": "places"
+    },
+    {
+      "id": "wb-017",
+      "chinese": "家",
+      "pinyin": "jiā",
+      "english": "home",
+      "partOfSpeech": "noun",
+      "category": "places"
+    },
+    {
+      "id": "wb-018",
+      "chinese": "你叫什么名字？",
+      "pinyin": "nǐ jiào shénme míngzi?",
+      "english": "What is your name?",
+      "partOfSpeech": "phrase",
+      "category": "conversation"
+    },
+    {
+      "id": "wb-019",
+      "chinese": "我叫...",
+      "pinyin": "wǒ jiào...",
+      "english": "My name is...",
+      "partOfSpeech": "phrase",
+      "category": "conversation"
+    },
+    {
+      "id": "wb-020",
+      "chinese": "一",
+      "pinyin": "yī",
+      "english": "one",
+      "partOfSpeech": "numeral",
+      "category": "numbers"
+    },
+    {
+      "id": "wb-021",
+      "chinese": "二",
+      "pinyin": "èr",
+      "english": "two",
+      "partOfSpeech": "numeral",
+      "category": "numbers"
+    },
+    {
+      "id": "wb-022",
+      "chinese": "三",
+      "pinyin": "sān",
+      "english": "three",
+      "partOfSpeech": "numeral",
+      "category": "numbers"
+    },
+    {
+      "id": "wb-023",
+      "chinese": "朋友",
+      "pinyin": "péngyou",
+      "english": "friend",
+      "partOfSpeech": "noun",
+      "category": "people"
+    },
+    {
+      "id": "wb-024",
+      "chinese": "老师",
+      "pinyin": "lǎoshī",
+      "english": "teacher",
+      "partOfSpeech": "noun",
+      "category": "people"
+    },
+    {
+      "id": "wb-025",
+      "chinese": "喜欢",
+      "pinyin": "xǐhuan",
+      "english": "to like",
+      "partOfSpeech": "verb",
+      "category": "verbs"
+    }
+  ],
+  "sentences": [
+    { "id": "s-001", "chinese": "你好，谢谢。", "pinyin": "Nǐ hǎo, xièxiè.", "english": "Hello, thank you." },
+    { "id": "s-002", "chinese": "我喜欢苹果。", "pinyin": "Wǒ xǐhuan píngguǒ.", "english": "I like apples." },
+    { "id": "s-003", "chinese": "请喝茶。", "pinyin": "Qǐng hē chá.", "english": "Please drink tea." },
+    { "id": "s-004", "chinese": "再见，朋友。", "pinyin": "Zàijiàn, péngyou.", "english": "Goodbye, friend." },
+    { "id": "s-005", "chinese": "早上好，老师。", "pinyin": "Zǎoshang hǎo, lǎoshī.", "english": "Good morning, teacher." },
+    { "id": "s-006", "chinese": "我吃米饭。", "pinyin": "Wǒ chī mǐfàn.", "english": "I eat rice." },
+    { "id": "s-007", "chinese": "我喜欢学习。", "pinyin": "Wǒ xǐhuan xuéxí.", "english": "I like to study." },
+    { "id": "s-008", "chinese": "请喝水。", "pinyin": "Qǐng hē shuǐ.", "english": "Please drink water." },
+    { "id": "s-009", "chinese": "对不起，再见。", "pinyin": "Duìbuqǐ, zàijiàn.", "english": "Sorry, goodbye." },
+    { "id": "s-010", "chinese": "书在桌子上。", "pinyin": "Shū zài zhuōzi shang.", "english": "The book is on the table." }
+  ]
+}
