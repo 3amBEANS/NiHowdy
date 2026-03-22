@@ -9,30 +9,39 @@ const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY!;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
 const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY!;
 
-const VOICE_ID = 'pNInz6obpgDQGcFmaJgB'; // Adam — multilingual v2
 const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
 
+const CLIENT_TTS_LANGS = new Set<string>();
+
 // ── language config ────────────────────────────────────────────────────────
-const LANG: Record<string, { code: string; model: string; name: string }> = {
-  en: { code: 'en',    model: 'nova-2', name: 'English' },
-  zh: { code: 'zh-CN', model: 'nova-2', name: 'Mandarin Chinese' },
-  ja: { code: 'ja',    model: 'nova-2', name: 'Japanese' },
-  ko: { code: 'ko',    model: 'nova-2', name: 'Korean' },
-  es: { code: 'es',    model: 'nova-2', name: 'Spanish' },
-  fr: { code: 'fr',    model: 'nova-2', name: 'French' },
+const LANG: Record<string, { code: string; model: string; name: string; voiceId: string }> = {
+  en: { code: 'en',    model: 'nova-2', name: 'English',          voiceId: 'pNInz6obpgDQGcFmaJgB' }, // Adam
+  zh: { code: 'zh-CN', model: 'nova-2', name: 'Mandarin Chinese', voiceId: '4VZIsMPtgggwNg7OXbPY' },
+  ja: { code: 'ja',    model: 'nova-2', name: 'Japanese',         voiceId: 'Mv8AjrYZCBkdsmDHNwcB' },
+  ko: { code: 'ko',    model: 'nova-2', name: 'Korean',           voiceId: 'fHzGR8qcnsDR2uaj9r16' },
+  hi: { code: 'hi',    model: 'nova-2', name: 'Hindi',            voiceId: 'zgqefOY5FPQ3bB7OZTVR' },
+  es: { code: 'es',    model: 'nova-2', name: 'Spanish',          voiceId: 'pNInz6obpgDQGcFmaJgB' },
+  fr: { code: 'fr',    model: 'nova-2', name: 'French',           voiceId: 'pNInz6obpgDQGcFmaJgB' },
 };
 
 // ── prompts ────────────────────────────────────────────────────────────────
 
-function buildSystemPrompt(language: string, missionContext?: string): string {
+function buildSystemPrompt(
+  language: string,
+  missionContext?: string,
+  flaggedWords: string[] = []
+): string {
   const lang = LANG[language] ?? { name: language };
   const persona = `You are a friendly native ${lang.name} speaker helping a learner practice ${lang.name}. ALWAYS reply only in ${lang.name}, even when the learner makes mistakes — gently model correct usage in your response instead of correcting them explicitly. Keep replies conversational and under 60 words.`;
   const mission = missionContext
     ? `\n\nMISSION: The learner is trying to accomplish this goal through conversation: "${missionContext}". You have information that can help them, but make them ask for it naturally — don't volunteer the answer immediately.`
     : '';
-  const format = `\n\nYou MUST respond with valid JSON matching this exact shape: {"reply":"...","missionComplete":false,"missionReason":""}
+  const pronSection = flaggedWords.length > 0
+    ? `\n\nPRONUNCIATION FEEDBACK: The speech recognizer flagged these words as possibly mispronounced: ${flaggedWords.join(', ')}. For each flagged word populate the "pronunciationFeedback" array with: "word" (exact flagged word), "ipa" (correct IPA transcription for ${lang.name}), "tip" (one short English sentence on how to position mouth/tongue for the key sound — max 15 words), "category" (exactly one of: vowel-high-front, vowel-high-back, vowel-mid, vowel-low, consonant-bilabial, consonant-labiodental, consonant-dental, consonant-alveolar, consonant-postalveolar, consonant-palatal, consonant-velar, consonant-rhotic, consonant-lateral, consonant-glottal). Focus on the phoneme that is hardest for a native English speaker.`
+    : '';
+  const format = `\n\nYou MUST respond with valid JSON: {"reply":"...","missionComplete":false,"missionReason":"","pronunciationFeedback":[]}
 IMPORTANT: Set missionComplete=true in the SAME turn where YOU reveal the key information the learner was seeking — not before, not after. Every other turn must have missionComplete=false. missionReason is a brief English sentence explaining what they learned (shown to the learner).`;
-  return persona + mission + format;
+  return persona + mission + pronSection + format;
 }
 
 // ── types ──────────────────────────────────────────────────────────────────
@@ -47,10 +56,18 @@ interface HistoryMessage {
   content: string;
 }
 
+interface PronFeedbackItem {
+  word: string;
+  ipa: string;
+  tip: string;
+  category: string;
+}
+
 interface GeminiResult {
   reply: string;
   missionComplete: boolean;
   missionReason: string;
+  pronunciationFeedback: PronFeedbackItem[];
 }
 
 // ── STT (Deepgram) ─────────────────────────────────────────────────────────
@@ -91,7 +108,8 @@ async function generateResponse(
   transcript: string,
   language: string,
   missionContext: string | undefined,
-  history: HistoryMessage[]
+  history: HistoryMessage[],
+  flaggedWords: string[] = []
 ): Promise<GeminiResult> {
   const contents = [
     ...history.map((m) => ({ role: m.role, parts: [{ text: m.content }] })),
@@ -104,11 +122,11 @@ async function generateResponse(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         system_instruction: {
-          parts: [{ text: buildSystemPrompt(language, missionContext) }],
+          parts: [{ text: buildSystemPrompt(language, missionContext, flaggedWords) }],
         },
         contents,
         generationConfig: {
-          maxOutputTokens: 550,
+          maxOutputTokens: 700,
           temperature: 1.0,
           responseMimeType: 'application/json',
           responseSchema: {
@@ -117,8 +135,21 @@ async function generateResponse(
               reply:           { type: 'STRING' },
               missionComplete: { type: 'BOOLEAN' },
               missionReason:   { type: 'STRING' },
+              pronunciationFeedback: {
+                type: 'ARRAY',
+                items: {
+                  type: 'OBJECT',
+                  properties: {
+                    word:     { type: 'STRING' },
+                    ipa:      { type: 'STRING' },
+                    tip:      { type: 'STRING' },
+                    category: { type: 'STRING' },
+                  },
+                  required: ['word', 'ipa', 'tip', 'category'],
+                },
+              },
             },
-            required: ['reply', 'missionComplete', 'missionReason'],
+            required: ['reply', 'missionComplete', 'missionReason', 'pronunciationFeedback'],
           },
         },
       }),
@@ -133,6 +164,7 @@ async function generateResponse(
       reply: parsed.reply ?? raw,
       missionComplete: parsed.missionComplete ?? false,
       missionReason: parsed.missionReason ?? '',
+      pronunciationFeedback: parsed.pronunciationFeedback ?? [],
     };
   } catch {
     const match = raw.match(/\{[\s\S]*\}/);
@@ -143,18 +175,20 @@ async function generateResponse(
           reply: parsed.reply ?? raw,
           missionComplete: parsed.missionComplete ?? false,
           missionReason: parsed.missionReason ?? '',
+          pronunciationFeedback: parsed.pronunciationFeedback ?? [],
         };
       } catch { /* fall through */ }
     }
-    return { reply: raw, missionComplete: false, missionReason: '' };
+    return { reply: raw, missionComplete: false, missionReason: '', pronunciationFeedback: [] };
   }
 }
 
 // ── TTS (ElevenLabs) ───────────────────────────────────────────────────────
 
 async function synthesizeSpeech(text: string, language: string): Promise<string> {
+  const cfg = LANG[language] ?? LANG['en'];
   const model = language === 'en' ? 'eleven_flash_v2_5' : 'eleven_multilingual_v2';
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${cfg.voiceId}`, {
     method: 'POST',
     headers: {
       'xi-api-key': ELEVENLABS_API_KEY,
@@ -210,19 +244,22 @@ router.post('/', upload.single('audio'), async (req: Request, res: Response) => 
     const pronunciationIssues = words.filter((w) => w.confidence < 0.75);
     sse(res, { step: 'thinking', transcript, pronunciationIssues });
 
-    const { reply, missionComplete, missionReason } = await generateResponse(
-      transcript, language, missionContext, history
-    );
+    const flaggedWords = pronunciationIssues.map((w) => w.word);
+    const { reply, missionComplete, missionReason, pronunciationFeedback } =
+      await generateResponse(transcript, language, missionContext, history, flaggedWords);
 
     sse(res, { step: 'speaking', response: reply });
-    const audioB64 = await synthesizeSpeech(reply, language);
+
+    const useClientTTS = CLIENT_TTS_LANGS.has(language);
+    const audioB64 = useClientTTS ? undefined : await synthesizeSpeech(reply, language);
 
     sse(res, {
       step: 'done',
       transcript,
       response: reply,
-      audio: audioB64,
+      ...(useClientTTS ? { useClientTTS: true } : { audio: audioB64 }),
       pronunciationIssues,
+      pronunciationFeedback,
       missionComplete,
       missionReason,
     });
