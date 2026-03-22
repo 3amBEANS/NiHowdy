@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import Navigation from '@/components/navigation'
 import StudyPlanDashboard from '@/components/study-plan-dashboard'
 import MaterialsContent from '@/components/materials-content'
+import { WeeklyPlan } from './components/weekly-plan'
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
         <Routes>
           <Route path="/" element={<StudyPlanDashboard />} />
           <Route path="/materials" element={<MaterialsContent />} />
+          <Route path="/weeklyPlan" element={<WeeklyPlan />} />
         </Routes>
       </main>
     </div>
