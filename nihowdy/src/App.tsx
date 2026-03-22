@@ -7,10 +7,12 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <Routes>
-        <Route path="/" element={<StudyPlanDashboard />} />
-        <Route path="/materials" element={<MaterialsContent />} />
-      </Routes>
+      <main className="mx-auto w-full max-w-7.5xl px-4 sm:px-6 lg:px-8 py-6">
+        <Routes>
+          <Route path="/" element={<StudyPlanDashboard />} />
+          <Route path="/materials" element={<MaterialsContent />} />
+        </Routes>
+      </main>
     </div>
   )
 }
