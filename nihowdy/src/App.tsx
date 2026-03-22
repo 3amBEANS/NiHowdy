@@ -13,6 +13,8 @@ import SettingsPage from './components/settings-page'
 import WordBankPage from '@/pages/WordBankPage'
 import ShortStoryPage from './components/short-story-page'
 import ArticlePage from "@/pages/article-page"
+import FoodDrinksVocabularyPage from "@/pages/food-drinks-vocabulary-page"
+import AssessmentPage from './components/assessment-page'
 
 function RequireAuth() {
   const { isAuthenticated, isLoading } = useAuth0()
@@ -49,7 +51,12 @@ function App() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/stories" element={<ShortStoryPage />} />
             <Route path="/articles" element={<ArticlePage />} />
+
+            <Route path="/vocabulary/food-drinks" element={<FoodDrinksVocabularyPage />} />
+            <Route path="/assessment/:id" element={<AssessmentPage />} />
+
             <Route path="/wordbank" element={<WordBankPage />} />
+
           </Route>
         </Routes>
       </main>

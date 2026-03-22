@@ -86,16 +86,19 @@ const typeIcons: Record<string, ElementType> = {
   video: Sparkles,
 }
 
-const getLessonRoute = (type: string) => {
+const getLessonRoute = (type: string, lessonId?: number) => {
+  if (type === "vocabulary" && lessonId === 7) return "/vocabulary/food-drinks"
   if (type === "reading" || type === "article") return "/articles"
   if (type === "assessment") return "/test-page"
   if (type === "speaking") return "/voice-chat"
   if (type === "video") return "/video"
   if (type === "writing") return "/materials?tab=resources"
+  if (type === "vocabulary") return "/materials"
   return "/materials"
 }
 
-const getLessonButtonLabel = (type: string) => {
+const getLessonButtonLabel = (type: string, lessonId?: number) => {
+  if (type === "vocabulary" && lessonId === 7) return "Study Vocabulary"
   if (type === "reading" || type === "article") return "Read Article"
   if (type === "assessment") return "Start Test"
   if (type === "speaking") return "Start Voice Chat"
@@ -342,8 +345,8 @@ export default function StudyPlanDashboard() {
               const completed = completedSet.has(lesson.id)
               const score = lesson.type === "assessment" ? getAssessmentScore(lesson.id) : null
               const Icon = typeIcons[lesson.type] || BookOpen
-              const lessonRoute = getLessonRoute(lesson.type)
-              const buttonLabel = getLessonButtonLabel(lesson.type)
+              const lessonRoute = getLessonRoute(lesson.type, lesson.id)
+              const buttonLabel = getLessonButtonLabel(lesson.type, lesson.id)
 
               return (
                 <div

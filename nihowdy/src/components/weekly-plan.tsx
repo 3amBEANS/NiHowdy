@@ -68,16 +68,19 @@ const weeklyPlan: DayPlan[] = [
   { day: "Saturday", short: "Sat", lessons: [] },
 ]
 
-const getLessonRoute = (type: string) => {
+const getLessonRoute = (type: string, lessonId?: number) => {
+  if (type === "vocabulary" && lessonId === 7) return "/vocabulary/food-drinks"
   if (type === "reading" || type === "article") return "/articles"
   if (type === "assessment") return "/test-page"
   if (type === "speaking") return "/voice-chat"
   if (type === "video") return "/video"
   if (type === "writing") return "/materials?tab=resources"
+  if (type === "vocabulary") return "/materials"
   return "/materials"
 }
 
-const getLessonButtonLabel = (type: string) => {
+const getLessonButtonLabel = (type: string, lessonId?: number) => {
+  if (type === "vocabulary" && lessonId === 7) return "Study Vocabulary"
   if (type === "reading" || type === "article") return "Read Article"
   if (type === "assessment") return "Start Test"
   if (type === "speaking") return "Start Voice Chat"
@@ -153,8 +156,8 @@ export function WeeklyPlan() {
               </div>
             ) : (
               selected.lessons.map((lesson) => {
-                const lessonRoute = getLessonRoute(lesson.type)
-                const label = lesson.completed ? "Review" : getLessonButtonLabel(lesson.type)
+                const lessonRoute = getLessonRoute(lesson.type, lesson.id)
+                const label = lesson.completed ? "Review" : getLessonButtonLabel(lesson.type, lesson.id)
 
                 return (
                   <div

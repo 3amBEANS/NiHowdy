@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
-import { useSearchParams } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/Button"
 import { Badge } from "@/components/ui/badge"
@@ -22,7 +22,6 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth0 } from "@auth0/auth0-react"
-import { Link } from "react-router-dom"
 
 type PerformanceData = {
   completedLessonIds?: number[]
@@ -95,45 +94,65 @@ const videos = [
 const assessments = [
   {
     id: 1,
+    slug: "beginner",
     title: "Beginner Level Assessment",
-    description: "Test your foundational Spanish knowledge",
-    questions: 20,
+    description: "Test your foundational knowledge",
+    questions: 5,
     timeLimit: "15 min",
     difficulty: "Beginner",
     score: 95,
     completed: true,
     badge: "gold",
+    path: "/assessment/beginner",
   },
   {
     id: 2,
+    slug: "vocabulary",
     title: "Vocabulary Quiz: Daily Life",
     description: "Test your vocabulary on everyday topics",
-    questions: 15,
+    questions: 5,
     timeLimit: "10 min",
     difficulty: "Beginner",
     score: 88,
     completed: true,
     badge: "silver",
+    path: "/assessment/vocabulary",
   },
   {
     id: 3,
+    slug: "grammar",
     title: "Grammar Test: Present Tense",
-    description: "Master the present tense conjugations",
-    questions: 25,
+    description: "Master basic sentence structures",
+    questions: 5,
     timeLimit: "20 min",
     difficulty: "Intermediate",
     score: null,
     completed: false,
+    path: "/assessment/grammar",
   },
   {
     id: 4,
+    slug: "listening",
     title: "Listening Comprehension",
-    description: "Understand native speaker conversations",
-    questions: 10,
+    description: "Test your understanding of phrases",
+    questions: 5,
     timeLimit: "25 min",
     difficulty: "Intermediate",
     score: null,
     completed: false,
+    path: "/assessment/listening",
+  },
+  {
+    id: 7,
+    slug: "food-drinks",
+    title: "Food & Drinks Quiz",
+    description: "Quiz on words you've learned from the Food & Drinks vocabulary",
+    questions: 10,
+    timeLimit: "~5 min",
+    difficulty: "Beginner",
+    score: null,
+    completed: false,
+    path: "/assessment/food-drinks",
   },
   {
     id: 5,
@@ -149,7 +168,7 @@ const assessments = [
   {
     id: 6,
     title: "Advanced Proficiency Test",
-    description: "Prove your advanced Spanish skills",
+    description: "Prove your advanced skills",
     questions: 50,
     timeLimit: "60 min",
     difficulty: "Advanced",
@@ -186,6 +205,11 @@ const badgeColors = {
 
 const getAssessmentRoute = (assessmentId: number) => {
   return `/test-page?assessment=${assessmentId}`
+}
+
+const getAssessmentLink = (assessment: (typeof assessments)[number]) => {
+  if (assessment.path) return assessment.path
+  return getAssessmentRoute(assessment.id)
 }
 
 export default function MaterialsContent() {
@@ -475,9 +499,10 @@ export default function MaterialsContent() {
                   </div>
                   <div className="flex items-center gap-3">
                     {!assessment.locked && (
-                      <Button asChild size="sm" variant={completed ? "outline" : "default"}>
-                        <Link to={getAssessmentRoute(assessment.id)} onClick={() => markAssessmentCompleted(assessment.id)}>
+                      <Button asChild size="sm" variant={completed ? "outline" : "default"} className="gap-1.5">
+                        <Link to={getAssessmentLink(assessment)} onClick={() => markAssessmentCompleted(assessment.id)}>
                           {completed ? "Review" : "Start"}
+                          <ChevronRight className="h-4 w-4" />
                         </Link>
                       </Button>
                     )}
