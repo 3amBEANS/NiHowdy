@@ -23,7 +23,6 @@ import { cn } from "../lib/utils"
 const weeklyPlan = [
   {
     day: "Monday",
-    date: "Mar 18",
     lessons: [
       { id: 1, title: "Vocabulary: Daily Routines", type: "vocabulary", duration: "15 min", completed: true },
       { id: 2, title: "Grammar: Present Tense", type: "grammar", duration: "20 min", completed: true },
@@ -31,7 +30,6 @@ const weeklyPlan = [
   },
   {
     day: "Tuesday",
-    date: "Mar 19",
     lessons: [
       { id: 3, title: "Listening: Conversations", type: "listening", duration: "15 min", completed: true },
       { id: 4, title: "Speaking Practice", type: "speaking", duration: "10 min", completed: false },
@@ -39,7 +37,6 @@ const weeklyPlan = [
   },
   {
     day: "Wednesday",
-    date: "Mar 20",
     lessons: [
       { id: 5, title: "Reading: Short Story", type: "reading", duration: "20 min", completed: false },
       { id: 6, title: "Writing Exercise", type: "writing", duration: "15 min", completed: false },
@@ -47,7 +44,6 @@ const weeklyPlan = [
   },
   {
     day: "Thursday",
-    date: "Mar 21",
     lessons: [
       { id: 7, title: "Vocabulary: Food & Drinks", type: "vocabulary", duration: "15 min", completed: false },
       { id: 8, title: "Grammar: Articles", type: "grammar", duration: "20 min", completed: false },
@@ -55,7 +51,6 @@ const weeklyPlan = [
   },
   {
     day: "Friday",
-    date: "Mar 22",
     lessons: [
       { id: 9, title: "Review & Practice", type: "review", duration: "25 min", completed: false },
       { id: 10, title: "Weekly Assessment", type: "assessment", duration: "15 min", completed: false },
@@ -94,7 +89,7 @@ export function StudyPlanDashboard() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground gap-2">
-            Welcome back, <span className="text-primary">Sarah</span>
+            Welcome back, <span className="text-primary">Chigga</span>
           </h1>
           <p className="mt-1 text-muted-foreground">
             Continue your Spanish learning journey
@@ -180,7 +175,6 @@ export function StudyPlanDashboard() {
                       "text-sm",
                       selectedDay === index ? "text-primary-foreground/80" : "text-muted-foreground"
                     )}>
-                      {day.date}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
