@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { PhonemeVisualizer, type PronFeedback } from './PhonemeVisualizer';
+import { useWordBank } from '@/hooks/useWordBank';
 
 // ── types ──────────────────────────────────────────────────────────────────
 
@@ -127,6 +128,8 @@ export function VoiceChat({
 }: VoiceChatProps) {
   const langLabel = languageName ?? LANG_NAMES[language] ?? language;
   const hasQuiz = !!(mission?.answer && mission?.wrongChoices?.length === 3);
+
+  const { addItem: addToGlobalWordBank } = useWordBank();
 
   // ── core state ───────────────────────────────────────────────────────────
   const [status, setStatus] = useState<Status>('idle');
@@ -291,6 +294,19 @@ export function VoiceChat({
                     ...ev.pronunciationIssues!.filter((w) => !existing.has(w.word)),
                   ];
                 });
+                // Persist to global word bank
+                for (const issue of ev.pronunciationIssues) {
+                  const fb = (ev.pronunciationFeedback ?? pendingTurn.pronunciationFeedback ?? [])
+                    .find(f => f.word === issue.word);
+                  addToGlobalWordBank({
+                    word: issue.word,
+                    source: 'voice',
+                    confidence: issue.confidence,
+                    ipa: fb?.ipa,
+                    tip: fb?.tip,
+                    language: langLabel,
+                  });
+                }
               }
 
               if (ev.missionComplete && !missionDone) {

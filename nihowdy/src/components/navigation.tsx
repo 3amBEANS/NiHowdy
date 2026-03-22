@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Settings,
   LogOut,
+  Library,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 
@@ -20,6 +21,7 @@ const navItems = [
   { href: "/materials", label: "Materials", icon: Video },
   { href: "/voice-chat", label: "Voice Chat", icon: Mic },
   { href: "/video", label: "Video", icon: Youtube },
+  { href: "/wordbank", label: "Word Bank", icon: Library },
 ];
 
 const SETTINGS_KEY = "nihowdy.settings";

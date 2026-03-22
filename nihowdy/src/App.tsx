@@ -10,6 +10,7 @@ import AuthPage from './components/auth-page'
 import { Callback } from './components/callback'
 import TestPage from './components/test-page'
 import SettingsPage from './components/settings-page'
+import WordBankPage from '@/pages/WordBankPage'
 import ShortStoryPage from './components/short-story-page'
 import ArticlePage from "@/pages/article-page"
 import FoodDrinksVocabularyPage from "@/pages/food-drinks-vocabulary-page"
@@ -50,8 +51,12 @@ function App() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/stories" element={<ShortStoryPage />} />
             <Route path="/articles" element={<ArticlePage />} />
+
             <Route path="/vocabulary/food-drinks" element={<FoodDrinksVocabularyPage />} />
             <Route path="/assessment/:id" element={<AssessmentPage />} />
+
+            <Route path="/wordbank" element={<WordBankPage />} />
+
           </Route>
         </Routes>
       </main>
