@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent} from "@/components/ui/card"
+import { useEffect, useState } from "react"
+import { useSearchParams } from "react-router-dom"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/Button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -16,7 +17,8 @@ import {
   Video,
   FileText,
   Award,
-  Trophy
+  Trophy,
+  Download
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -146,54 +148,45 @@ const assessments = [
   },
 ]
 
-const resources = [
-  {
-    id: 1,
-    title: "Spanish Grammar Cheat Sheet",
-    type: "PDF",
-    pages: 12,
-    downloads: "4.2k",
-  },
-  {
-    id: 2,
-    title: "Vocabulary Flashcards: Top 500 Words",
-    type: "Interactive",
-    cards: 500,
-    downloads: "3.8k",
-  },
-  {
-    id: 3,
-    title: "Verb Conjugation Tables",
-    type: "PDF",
-    pages: 24,
-    downloads: "2.9k",
-  },
-  {
-    id: 4,
-    title: "Practice Worksheets Bundle",
-    type: "PDF",
-    pages: 45,
-    downloads: "1.7k",
-  },
-]
+const pdfModules = import.meta.glob("/src/assets/**/*.pdf", {
+  eager: true,
+  import: "default",
+}) as Record<string, string>
 
-const badgeColors = {
-  gold: "bg-yellow-100 text-yellow-700 border-yellow-300",
-  silver: "bg-gray-100 text-gray-700 border-gray-300",
-  bronze: "bg-orange-100 text-orange-700 border-orange-300",
-}
+const pdfFiles = Object.entries(pdfModules)
+  .map(([path, url]) => {
+    const fileName = path.split("/").pop() || "document.pdf"
+    const label = fileName.replace(/\.pdf$/i, "").replace(/[-_]/g, " ")
+    return { fileName, label, url }
+  })
+  .sort((a, b) => a.label.localeCompare(b.label))
 
 const difficultyColors = {
-  Beginner: "bg-green-100 text-green-700",
-  Intermediate: "bg-blue-100 text-blue-700",
-  Advanced: "bg-purple-100 text-purple-700",
-}
+  Beginner: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  Intermediate: "bg-amber-100 text-amber-700 border-amber-200",
+  Advanced: "bg-rose-100 text-rose-700 border-rose-200",
+} as const
 
-export function MaterialsContent() {
+const badgeColors = {
+  gold: "bg-yellow-100 text-yellow-700 border-yellow-200",
+  silver: "bg-slate-100 text-slate-700 border-slate-200",
+  bronze: "bg-orange-100 text-orange-700 border-orange-200",
+} as const
+
+export default function MaterialsContent() {
   const [activeTab, setActiveTab] = useState("videos")
+  const [searchParams] = useSearchParams()
+
+  useEffect(() => {
+    const tab = searchParams.get("tab")
+    if (tab === "videos" || tab === "assessments" || tab === "resources") {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
 
   const completedVideos = videos.filter(v => v.completed).length
   const completedAssessments = assessments.filter(a => a.completed).length
+  const resourceCount = pdfFiles.length
 
   return (
     <div className="space-y-8">
@@ -248,7 +241,7 @@ export function MaterialsContent() {
               <FileText className="h-6 w-6 text-orange-500" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{resources.length}</p>
+              <p className="text-2xl font-bold text-foreground">{resourceCount}</p>
               <p className="text-sm text-muted-foreground">Resources</p>
             </div>
           </CardContent>
@@ -410,39 +403,41 @@ export function MaterialsContent() {
 
         {/* Resources Tab */}
         <TabsContent value="resources" className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            {resources.map((resource) => (
-              <Card key={resource.id} className="border-border/50 transition-all hover:border-primary/50">
-                <CardContent className="flex items-center gap-4 p-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent">
-                    <FileText className="h-6 w-6 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">
-                      {resource.title}
-                    </h3>
-                    <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground">
-                      <Badge variant="secondary" className="text-xs">
-                        {resource.type}
-                      </Badge>
-                      <span>
-                        {resource.pages ? `${resource.pages} pages` : `${resource.cards} cards`}
-                      </span>
-                      <span>{resource.downloads} downloads</span>
+          {pdfFiles.length === 0 ? (
+            <Card className="border-border/50">
+              <CardContent className="p-4 text-sm text-muted-foreground">
+                No PDF resources found.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {pdfFiles.map((file, index) => (
+                <Card key={file.url} className="border-border/50 transition-all hover:border-primary/50">
+                  <CardContent className="flex items-center gap-4 p-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent">
+                      <FileText className="h-6 w-6 text-primary" />
                     </div>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    Download
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-foreground">{file.label}</h3>
+                      <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground">
+                        <Badge variant="secondary" className="text-xs">PDF</Badge>
+                        <span>Resource #{index + 1}</span>
+                      </div>
+                    </div>
+                    <a href={file.url} download={file.fileName} target="_blank" rel="noreferrer">
+                      <Button variant="outline" size="sm" className="gap-1.5">
+                        Download
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </a>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
   )
 }
-
-export default MaterialsContent
 

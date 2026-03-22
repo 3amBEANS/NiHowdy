@@ -89,6 +89,7 @@ const getLessonRoute = (type: string) => {
   if (type === "assessment") return "/test-page"
   if (type === "speaking") return "/voice-chat"
   if (type === "video") return "/video"
+  if (type === "writing") return "/materials?tab=resources"
   return "/materials"
 }
 
@@ -97,6 +98,7 @@ const getLessonButtonLabel = (type: string) => {
   if (type === "assessment") return "Start Test"
   if (type === "speaking") return "Start Voice Chat"
   if (type === "video") return "Watch Video"
+  if (type === "writing") return "Chinese Worksheet"
   return "Open"
 }
 
