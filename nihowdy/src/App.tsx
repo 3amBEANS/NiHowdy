@@ -3,6 +3,8 @@ import { useAuth0 } from '@auth0/auth0-react'
 import Navigation from '@/components/navigation'
 import StudyPlanDashboard from '@/components/study-plan-dashboard'
 import MaterialsContent from '@/components/materials-content'
+import VoiceChatPage from '@/pages/VoiceChatPage'
+import VideoLearningPage from '@/pages/VideoLearningPage'
 import { WeeklyPlan } from './components/weekly-plan'
 import AuthButtons from './components/auth-buttons'
 import AuthPage from './components/auth-page'
@@ -22,6 +24,7 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
+
       <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
         <div className="mb-4 flex justify-end">
           <AuthButtons />
@@ -30,13 +33,15 @@ function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/auth" element={<AuthPage />} />
-          <Route path="/callback" element={<Callback />} />  {/* 👈 moved out */}
+          <Route path="/callback" element={<Callback />} />
 
           {/* Protected routes */}
           <Route element={<RequireAuth />}>
             <Route path="/" element={<StudyPlanDashboard />} />
             <Route path="/materials" element={<MaterialsContent />} />
             <Route path="/weeklyPlan" element={<WeeklyPlan />} />
+            <Route path="/voice-chat" element={<VoiceChatPage />} />
+            <Route path="/video" element={<VideoLearningPage />} />
           </Route>
         </Routes>
       </main>
