@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useSearchParams } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/Button"
 import { Badge } from "@/components/ui/badge"
@@ -84,45 +84,53 @@ const videos = [
 const assessments = [
   {
     id: 1,
+    slug: "beginner",
     title: "Beginner Level Assessment",
-    description: "Test your foundational Spanish knowledge",
-    questions: 20,
+    description: "Test your foundational knowledge",
+    questions: 5,
     timeLimit: "15 min",
     difficulty: "Beginner",
     score: 95,
     completed: true,
     badge: "gold",
+    path: "/assessment/beginner",
   },
   {
     id: 2,
+    slug: "vocabulary",
     title: "Vocabulary Quiz: Daily Life",
     description: "Test your vocabulary on everyday topics",
-    questions: 15,
+    questions: 5,
     timeLimit: "10 min",
     difficulty: "Beginner",
     score: 88,
     completed: true,
     badge: "silver",
+    path: "/assessment/vocabulary",
   },
   {
     id: 3,
+    slug: "grammar",
     title: "Grammar Test: Present Tense",
-    description: "Master the present tense conjugations",
-    questions: 25,
+    description: "Master basic sentence structures",
+    questions: 5,
     timeLimit: "20 min",
     difficulty: "Intermediate",
     score: null,
     completed: false,
+    path: "/assessment/grammar",
   },
   {
     id: 4,
+    slug: "listening",
     title: "Listening Comprehension",
-    description: "Understand native speaker conversations",
-    questions: 10,
+    description: "Test your understanding of phrases",
+    questions: 5,
     timeLimit: "25 min",
     difficulty: "Intermediate",
     score: null,
     completed: false,
+    path: "/assessment/listening",
   },
   {
     id: 5,
@@ -138,7 +146,7 @@ const assessments = [
   {
     id: 6,
     title: "Advanced Proficiency Test",
-    description: "Prove your advanced Spanish skills",
+    description: "Prove your advanced skills",
     questions: 50,
     timeLimit: "60 min",
     difficulty: "Advanced",
@@ -380,19 +388,27 @@ export default function MaterialsContent() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  {assessment.completed ? (
-                    <Button variant="outline" size="sm" className="gap-1.5">
-                      Review
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
+                  {assessment.completed && assessment.path ? (
+                    <Link to={assessment.path}>
+                      <Button variant="outline" size="sm" className="gap-1.5">
+                        Review
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
                   ) : assessment.locked ? (
                     <Button variant="outline" size="sm" disabled>
                       Locked
                     </Button>
+                  ) : assessment.path ? (
+                    <Link to={assessment.path}>
+                      <Button size="sm" className="gap-1.5">
+                        Start Test
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
                   ) : (
-                    <Button size="sm" className="gap-1.5">
-                      Start Test
-                      <ChevronRight className="h-4 w-4" />
+                    <Button size="sm" className="gap-1.5" disabled>
+                      Coming Soon
                     </Button>
                   )}
                 </div>
