@@ -1,10 +1,19 @@
 import { useMemo, useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
+import { useSearchParams } from "react-router-dom";
 
 type Question = {
   id: string;
   prompt: string;
   options: string[];
   correctIndex: number;
+};
+
+type PerformanceData = {
+  completedLessonIds?: number[];
+  completedVideoIds?: number[];
+  completedAssessmentIds?: number[];
+  assessmentScores?: Record<string, number>;
 };
 
 const SAMPLE_QUESTIONS: Question[] = [
@@ -28,6 +37,8 @@ const SAMPLE_QUESTIONS: Question[] = [
   },
 ];
 
+const PERFORMANCE_KEY_PREFIX = "nihowdy.performance";
+
 export default function TestPage() {
   const questions = SAMPLE_QUESTIONS;
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -35,6 +46,38 @@ export default function TestPage() {
     Object.fromEntries(questions.map((q) => [q.id, null]))
   );
   const [submitted, setSubmitted] = useState(false);
+  const { user } = useAuth0();
+  const [searchParams] = useSearchParams();
+  const assessmentId = Number(searchParams.get("assessment") ?? "10"); // fallback to weekly assessment id
+
+  const saveAssessmentResult = (id: number, scorePercent: number) => {
+    const key = `${PERFORMANCE_KEY_PREFIX}.${user?.sub ?? "guest"}`;
+
+    let prev: PerformanceData = {};
+    try {
+      const raw = localStorage.getItem(key);
+      prev = raw ? (JSON.parse(raw) as PerformanceData) : {};
+    } catch {
+      prev = {};
+    }
+
+    const completedAssessmentIds = Array.isArray(prev.completedAssessmentIds)
+      ? [...new Set([...prev.completedAssessmentIds, id])]
+      : [id];
+
+    const assessmentScores = {
+      ...(prev.assessmentScores ?? {}),
+      [String(id)]: scorePercent,
+    };
+
+    const next: PerformanceData = {
+      ...prev,
+      completedAssessmentIds,
+      assessmentScores,
+    };
+
+    localStorage.setItem(key, JSON.stringify(next));
+  };
 
   const current = questions[currentIndex];
   const selected = answers[current.id];
@@ -58,7 +101,11 @@ export default function TestPage() {
   const goPrev = () => setCurrentIndex((i) => Math.max(0, i - 1));
   const goNext = () => setCurrentIndex((i) => Math.min(questions.length - 1, i + 1));
 
-  const submitTest = () => setSubmitted(true);
+  const submitTest = () => {
+    const percent = Math.round((score / questions.length) * 100);
+    saveAssessmentResult(assessmentId, percent);
+    setSubmitted(true);
+  };
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">

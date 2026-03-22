@@ -25,51 +25,52 @@ type SettingsData = {
   learningLanguage?: string
 }
 
-const SETTINGS_KEY = "nihowdy.settings"
+type PerformanceData = {
+  completedLessonIds: number[]
+  assessmentScores?: Record<string, number>
+}
 
+const SETTINGS_KEY = "nihowdy.settings"
+const PERFORMANCE_KEY_PREFIX = "nihowdy.performance"
+
+// remove `completed` from lesson seed data; completion is now persisted
 const weeklyPlan = [
   {
     day: "Monday",
     lessons: [
-      { id: 1, title: "Vocabulary: Daily Routines", type: "vocabulary", duration: "15 min", completed: true },
-      { id: 2, title: "Grammar: Present Tense", type: "grammar", duration: "20 min", completed: true },
+      { id: 1, title: "Vocabulary: Daily Routines", type: "vocabulary", duration: "15 min" },
+      { id: 2, title: "Grammar: Present Tense", type: "grammar", duration: "20 min" },
     ],
   },
   {
     day: "Tuesday",
     lessons: [
-      { id: 3, title: "Listening: Conversations", type: "listening", duration: "15 min", completed: true },
-      { id: 4, title: "Speaking Practice", type: "speaking", duration: "10 min", completed: false },
+      { id: 3, title: "Listening: Conversations", type: "listening", duration: "15 min" },
+      { id: 4, title: "Speaking Practice", type: "speaking", duration: "10 min" },
     ],
   },
   {
     day: "Wednesday",
     lessons: [
-      { id: 5, title: "Reading: Chinese Article", type: "article", duration: "20 min", completed: false },
-      { id: 6, title: "Writing Exercise", type: "writing", duration: "15 min", completed: false },
+      { id: 5, title: "Reading: Chinese Article", type: "article", duration: "20 min" },
+      { id: 6, title: "Writing Exercise", type: "writing", duration: "15 min" },
     ],
   },
   {
     day: "Thursday",
     lessons: [
-      { id: 7, title: "Vocabulary: Food & Drinks", type: "vocabulary", duration: "15 min", completed: false },
-      { id: 8, title: "Grammar: Articles", type: "grammar", duration: "20 min", completed: false },
+      { id: 7, title: "Vocabulary: Food & Drinks", type: "vocabulary", duration: "15 min" },
+      { id: 8, title: "Grammar: Articles", type: "grammar", duration: "20 min" },
+      { id: 11, title: "Video Lesson: Ordering at a Café", type: "video", duration: "12 min" },
     ],
   },
   {
     day: "Friday",
     lessons: [
-      { id: 9, title: "Review & Practice", type: "review", duration: "25 min", completed: false },
-      { id: 10, title: "Weekly Assessment", type: "assessment", duration: "15 min", completed: false },
+      { id: 9, title: "Review & Practice", type: "review", duration: "25 min" },
+      { id: 10, title: "Weekly Assessment", type: "assessment", duration: "15 min" },
     ],
   },
-]
-
-const stats = [
-  { label: "Day Streak", value: "12", icon: Flame, color: "text-orange-500" },
-  { label: "Words Learned", value: "248", icon: BookOpen, color: "text-primary" },
-  { label: "Hours Studied", value: "24", icon: Clock, color: "text-blue-500" },
-  { label: "Achievements", value: "8", icon: Trophy, color: "text-yellow-500" },
 ]
 
 const typeIcons: Record<string, ElementType> = {
@@ -82,18 +83,22 @@ const typeIcons: Record<string, ElementType> = {
   review: Sparkles,
   assessment: Trophy,
   article: BookOpen,
+  video: Sparkles,
 }
 
-const getLessonRoute = (type: string) => {
+const getLessonRoute = (type: string, lessonId?: number) => {
+  if (type === "vocabulary" && lessonId === 7) return "/vocabulary/food-drinks"
   if (type === "reading" || type === "article") return "/articles"
   if (type === "assessment") return "/test-page"
   if (type === "speaking") return "/voice-chat"
   if (type === "video") return "/video"
   if (type === "writing") return "/materials?tab=resources"
+  if (type === "vocabulary") return "/materials"
   return "/materials"
 }
 
-const getLessonButtonLabel = (type: string) => {
+const getLessonButtonLabel = (type: string, lessonId?: number) => {
+  if (type === "vocabulary" && lessonId === 7) return "Study Vocabulary"
   if (type === "reading" || type === "article") return "Read Article"
   if (type === "assessment") return "Start Test"
   if (type === "speaking") return "Start Voice Chat"
@@ -102,10 +107,16 @@ const getLessonButtonLabel = (type: string) => {
   return "Open"
 }
 
+const parseMinutes = (duration: string) => Number(duration.replace(/[^\d]/g, "")) || 0
+
 export default function StudyPlanDashboard() {
   const [selectedDay, setSelectedDay] = useState(2)
   const { user } = useAuth0()
   const [settings, setSettings] = useState<SettingsData>({})
+  const [completedLessonIds, setCompletedLessonIds] = useState<number[]>([])
+  const [assessmentScores, setAssessmentScores] = useState<Record<string, number>>({})
+
+  const performanceKey = `${PERFORMANCE_KEY_PREFIX}.${user?.sub ?? "guest"}`
 
   useEffect(() => {
     const loadSettings = () => {
@@ -126,6 +137,35 @@ export default function StudyPlanDashboard() {
     }
   }, [])
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(performanceKey)
+      const parsed = raw ? (JSON.parse(raw) as PerformanceData) : { completedLessonIds: [] }
+      setCompletedLessonIds(Array.isArray(parsed.completedLessonIds) ? parsed.completedLessonIds : [])
+      setAssessmentScores(parsed.assessmentScores && typeof parsed.assessmentScores === "object" ? parsed.assessmentScores : {})
+    } catch {
+      setCompletedLessonIds([])
+      setAssessmentScores({})
+    }
+  }, [performanceKey])
+
+  const savePerformance = (ids: number[]) => {
+    const payload: PerformanceData = {
+      completedLessonIds: ids,
+      assessmentScores, // keep saved scores when writing performance
+    }
+    localStorage.setItem(performanceKey, JSON.stringify(payload))
+  }
+
+  const markLessonCompleted = (lessonId: number) => {
+    setCompletedLessonIds((prev) => {
+      if (prev.includes(lessonId)) return prev
+      const next = [...prev, lessonId]
+      savePerformance(next)
+      return next
+    })
+  }
+
   const displayName = useMemo(
     () =>
       settings.displayName?.trim() ||
@@ -137,10 +177,51 @@ export default function StudyPlanDashboard() {
   )
 
   const preferredLanguage = settings.learningLanguage || "Spanish"
+  const completedSet = useMemo(() => new Set(completedLessonIds), [completedLessonIds])
 
-  const completedLessons = weeklyPlan.flatMap((d) => d.lessons).filter((l) => l.completed).length
-  const totalLessons = weeklyPlan.flatMap((d) => d.lessons).length
+  const allLessons = useMemo(() => weeklyPlan.flatMap((d) => d.lessons), [])
+  const completedLessons = allLessons.filter((l) => completedSet.has(l.id)).length
+  const totalLessons = allLessons.length
   const progressPercent = Math.round((completedLessons / totalLessons) * 100)
+
+  const minutesStudied = allLessons
+    .filter((l) => completedSet.has(l.id))
+    .reduce((sum, l) => sum + parseMinutes(l.duration), 0)
+
+  const wordsLearned = allLessons
+    .filter((l) => completedSet.has(l.id))
+    .reduce((sum, l) => {
+      if (l.type === "vocabulary") return sum + 25
+      if (l.type === "article" || l.type === "reading") return sum + 15
+      return sum + 8
+    }, 0)
+
+  const today = new Date().getDay() // 0 Sun ... 6 Sat
+  const todayPlanIndex = today >= 1 && today <= 5 ? today - 1 : 4
+  let streak = 0
+  for (let i = todayPlanIndex; i >= 0; i--) {
+    const done = weeklyPlan[i].lessons.length > 0 && weeklyPlan[i].lessons.every((l) => completedSet.has(l.id))
+    if (!done) break
+    streak++
+  }
+
+  const achievements =
+    (streak >= 3 ? 1 : 0) +
+    (completedLessons >= 5 ? 1 : 0) +
+    (minutesStudied >= 120 ? 1 : 0) +
+    (wordsLearned >= 100 ? 1 : 0)
+
+  const stats = [
+    { label: "Day Streak", value: String(streak), icon: Flame, color: "text-orange-500" },
+    { label: "Words Learned", value: String(wordsLearned), icon: BookOpen, color: "text-primary" },
+    { label: "Hours Studied", value: (minutesStudied / 60).toFixed(1), icon: Clock, color: "text-blue-500" },
+    { label: "Achievements", value: String(achievements), icon: Trophy, color: "text-yellow-500" },
+  ]
+
+  const getAssessmentScore = (lessonId: number) => {
+    const v = assessmentScores[String(lessonId)]
+    return typeof v === "number" ? v : null
+  }
 
   return (
     <div className="space-y-8">
@@ -153,7 +234,7 @@ export default function StudyPlanDashboard() {
         </div>
         <Badge variant="secondary" className="w-fit gap-1.5 px-3 py-1.5 text-sm">
           <Flame className="h-4 w-4 text-orange-500" />
-          12 day streak
+          {streak} day streak
         </Badge>
       </div>
 
@@ -203,8 +284,8 @@ export default function StudyPlanDashboard() {
           </CardHeader>
           <CardContent className="space-y-2">
             {weeklyPlan.map((day, index) => {
-              const dayCompleted = day.lessons.every((l) => l.completed)
-              const dayPartial = day.lessons.some((l) => l.completed) && !dayCompleted
+              const dayCompleted = day.lessons.length > 0 && day.lessons.every((l) => completedSet.has(l.id))
+              const dayPartial = day.lessons.some((l) => completedSet.has(l.id)) && !dayCompleted
 
               return (
                 <button
@@ -254,43 +335,45 @@ export default function StudyPlanDashboard() {
           <CardHeader>
             <CardTitle className="text-lg">{weeklyPlan[selectedDay].day}&apos;s Lessons</CardTitle>
             <CardDescription>
-              {weeklyPlan[selectedDay].lessons.filter((l) => l.completed).length} of{" "}
+              {weeklyPlan[selectedDay].lessons.filter((l) => completedSet.has(l.id)).length} of{" "}
               {weeklyPlan[selectedDay].lessons.length} completed
             </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-4">
             {weeklyPlan[selectedDay].lessons.map((lesson) => {
+              const completed = completedSet.has(lesson.id)
+              const score = lesson.type === "assessment" ? getAssessmentScore(lesson.id) : null
               const Icon = typeIcons[lesson.type] || BookOpen
-              const lessonRoute = getLessonRoute(lesson.type)
-              const buttonLabel = getLessonButtonLabel(lesson.type)
+              const lessonRoute = getLessonRoute(lesson.type, lesson.id)
+              const buttonLabel = getLessonButtonLabel(lesson.type, lesson.id)
 
               return (
                 <div
                   key={lesson.id}
                   className={cn(
                     "flex items-center justify-between rounded-xl border p-4 transition-all",
-                    lesson.completed
+                    completed
                       ? "border-primary/30 bg-primary/5"
                       : "border-border hover:border-primary/50 hover:bg-accent/50"
                   )}
                 >
                   <div className="flex items-center gap-4">
-                    <div
-                      className={cn(
-                        "flex h-12 w-12 items-center justify-center rounded-xl",
-                        lesson.completed ? "bg-primary/20" : "bg-accent"
-                      )}
-                    >
-                      <Icon className={cn("h-6 w-6", lesson.completed ? "text-primary" : "text-muted-foreground")} />
+                    <div className={cn("flex h-12 w-12 items-center justify-center rounded-xl", completed ? "bg-primary/20" : "bg-accent")}>
+                      <Icon className={cn("h-6 w-6", completed ? "text-primary" : "text-muted-foreground")} />
                     </div>
 
                     <div>
-                      <p className={cn("font-medium", lesson.completed ? "text-primary" : "text-foreground")}>{lesson.title}</p>
+                      <p className={cn("font-medium", completed ? "text-primary" : "text-foreground")}>{lesson.title}</p>
                       <div className="mt-1 flex items-center gap-2">
                         <Badge variant="secondary" className="text-xs capitalize">
                           {lesson.type}
                         </Badge>
+                        {typeof score === "number" && (
+                          <Badge variant="outline" className="text-xs">
+                            {score}%
+                          </Badge>
+                        )}
                         <span className="flex items-center gap-1 text-sm text-muted-foreground">
                           <Clock className="h-3 w-3" />
                           {lesson.duration}
@@ -299,8 +382,10 @@ export default function StudyPlanDashboard() {
                     </div>
                   </div>
 
-                  <Button asChild size="sm" variant={lesson.completed ? "outline" : "default"}>
-                    <Link to={lessonRoute}>{lesson.completed ? "Review" : buttonLabel}</Link>
+                  <Button asChild size="sm" variant={completed ? "outline" : "default"}>
+                    <Link to={lessonRoute} onClick={() => markLessonCompleted(lesson.id)}>
+                      {completed ? "Review" : buttonLabel}
+                    </Link>
                   </Button>
                 </div>
               )

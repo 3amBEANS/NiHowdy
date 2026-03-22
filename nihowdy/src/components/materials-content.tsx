@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { Link, useSearchParams } from "react-router-dom"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/Button"
@@ -21,6 +21,16 @@ import {
   Download
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useAuth0 } from "@auth0/auth0-react"
+
+type PerformanceData = {
+  completedLessonIds?: number[]
+  completedVideoIds?: number[]
+  completedAssessmentIds?: number[]
+  assessmentScores?: Record<string, number>
+}
+
+const PERFORMANCE_KEY_PREFIX = "nihowdy.performance"
 
 const videos = [
   {
@@ -133,6 +143,18 @@ const assessments = [
     path: "/assessment/listening",
   },
   {
+    id: 7,
+    slug: "food-drinks",
+    title: "Food & Drinks Quiz",
+    description: "Quiz on words you've learned from the Food & Drinks vocabulary",
+    questions: 10,
+    timeLimit: "~5 min",
+    difficulty: "Beginner",
+    score: null,
+    completed: false,
+    path: "/assessment/food-drinks",
+  },
+  {
     id: 5,
     title: "Mid-Course Evaluation",
     description: "Comprehensive review of all topics covered",
@@ -181,9 +203,70 @@ const badgeColors = {
   bronze: "bg-orange-100 text-orange-700 border-orange-200",
 } as const
 
+const getAssessmentRoute = (assessmentId: number) => {
+  return `/test-page?assessment=${assessmentId}`
+}
+
+const getAssessmentLink = (assessment: (typeof assessments)[number]) => {
+  if (assessment.path) return assessment.path
+  return getAssessmentRoute(assessment.id)
+}
+
 export default function MaterialsContent() {
   const [activeTab, setActiveTab] = useState("videos")
   const [searchParams] = useSearchParams()
+  const { user } = useAuth0()
+  const [completedVideoIds, setCompletedVideoIds] = useState<number[]>([])
+  const [completedAssessmentIds, setCompletedAssessmentIds] = useState<number[]>([])
+  const [assessmentScores, setAssessmentScores] = useState<Record<string, number>>({})
+
+  const performanceKey = `${PERFORMANCE_KEY_PREFIX}.${user?.sub ?? "guest"}`
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(performanceKey)
+      const parsed = raw ? (JSON.parse(raw) as PerformanceData) : {}
+
+      setCompletedVideoIds(Array.isArray(parsed.completedVideoIds) ? parsed.completedVideoIds : [])
+      setCompletedAssessmentIds(
+        Array.isArray(parsed.completedAssessmentIds) ? parsed.completedAssessmentIds : []
+      )
+      setAssessmentScores(parsed.assessmentScores && typeof parsed.assessmentScores === "object" ? parsed.assessmentScores : {})
+    } catch {
+      setCompletedVideoIds([])
+      setCompletedAssessmentIds([])
+      setAssessmentScores({})
+    }
+  }, [performanceKey])
+
+  const savePerformance = (updater: (prev: PerformanceData) => PerformanceData) => {
+    const raw = localStorage.getItem(performanceKey)
+    let prev: PerformanceData = {}
+    try {
+      prev = raw ? (JSON.parse(raw) as PerformanceData) : {}
+    } catch {
+      prev = {}
+    }
+    localStorage.setItem(performanceKey, JSON.stringify(updater(prev)))
+  }
+
+  const markVideoCompleted = (videoId: number) => {
+    setCompletedVideoIds((prev) => {
+      if (prev.includes(videoId)) return prev
+      const next = [...prev, videoId]
+      savePerformance((p) => ({ ...p, completedVideoIds: next }))
+      return next
+    })
+  }
+
+  const markAssessmentCompleted = (assessmentId: number) => {
+    setCompletedAssessmentIds((prev) => {
+      if (prev.includes(assessmentId)) return prev
+      const next = [...prev, assessmentId]
+      savePerformance((p) => ({ ...p, completedAssessmentIds: next }))
+      return next
+    })
+  }
 
   useEffect(() => {
     const tab = searchParams.get("tab")
@@ -192,9 +275,33 @@ export default function MaterialsContent() {
     }
   }, [searchParams])
 
-  const completedVideos = videos.filter(v => v.completed).length
-  const completedAssessments = assessments.filter(a => a.completed).length
+  const completedVideoSet = useMemo(() => new Set(completedVideoIds), [completedVideoIds])
+  const completedAssessmentSet = useMemo(
+    () => new Set(completedAssessmentIds),
+    [completedAssessmentIds]
+  )
+
+  const completedVideos = videos.filter((v) => completedVideoSet.has(v.id)).length
   const resourceCount = pdfFiles.length
+
+  const isAssessmentCompleted = (assessment: (typeof assessments)[number]) =>
+    completedAssessmentSet.has(assessment.id) || Boolean(assessment.completed)
+
+  const completedAssessments = assessments.filter((a) => isAssessmentCompleted(a)).length
+
+  const getAssessmentScore = (assessmentId: number) => {
+    const v = assessmentScores[String(assessmentId)]
+    return typeof v === "number" ? v : null
+  }
+
+  const scoredCompleted = assessments
+    .map((a) => getAssessmentScore(a.id))
+    .filter((s): s is number => typeof s === "number")
+
+  const averageScore =
+    scoredCompleted.length > 0
+      ? Math.round(scoredCompleted.reduce((sum, s) => sum + s, 0) / scoredCompleted.length)
+      : null
 
   return (
     <div className="space-y-8">
@@ -238,7 +345,9 @@ export default function MaterialsContent() {
               <Trophy className="h-6 w-6 text-yellow-500" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">92%</p>
+              <p className="text-2xl font-bold text-foreground">
+                {averageScore !== null ? `${averageScore}%` : "--"}
+              </p>
               <p className="text-sm text-muted-foreground">Avg. Score</p>
             </div>
           </CardContent>
@@ -276,145 +385,137 @@ export default function MaterialsContent() {
         {/* Videos Tab */}
         <TabsContent value="videos" className="space-y-6">
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {videos.map((video) => (
-              <Card 
-                key={video.id} 
-                className={cn(
-                  "group overflow-hidden border-border/50 transition-all",
-                  video.locked ? "opacity-60" : "hover:border-primary/50 hover:shadow-lg"
-                )}
-              >
-                <div className={cn(
-                  "relative aspect-video",
-                  video.thumbnail
-                )}>
-                  {video.completed && (
-                    <div className="absolute right-2 top-2">
-                      <CheckCircle2 className="h-6 w-6 text-primary drop-shadow-md" />
-                    </div>
+            {videos.map((video) => {
+              const completed = completedVideoSet.has(video.id)
+
+              return (
+                <Card
+                  key={video.id}
+                  className={cn(
+                    "border-border/50 transition-all",
+                    completed ? "border-primary/30 bg-primary/5" : "hover:border-primary/50"
                   )}
-                  {video.locked && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-background/60">
-                      <Lock className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                  )}
-                  {!video.locked && (
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg">
-                        <Play className="h-6 w-6 text-primary-foreground" />
+                >
+                  <div className={cn(
+                    "relative aspect-video",
+                    video.thumbnail
+                  )}>
+                    {video.completed && (
+                      <div className="absolute right-2 top-2">
+                        <CheckCircle2 className="h-6 w-6 text-primary drop-shadow-md" />
                       </div>
+                    )}
+                    {video.locked && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-background/60">
+                        <Lock className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                    )}
+                    {!video.locked && (
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg">
+                          <Play className="h-6 w-6 text-primary-foreground" />
+                        </div>
+                      </div>
+                    )}
+                    <div className="absolute bottom-2 right-2 rounded bg-foreground/80 px-2 py-0.5 text-xs text-background">
+                      {video.duration}
                     </div>
-                  )}
-                  <div className="absolute bottom-2 right-2 rounded bg-foreground/80 px-2 py-0.5 text-xs text-background">
-                    {video.duration}
                   </div>
-                </div>
-                <CardContent className="p-4">
-                  <Badge 
-                    variant="secondary" 
-                    className={cn("mb-2 text-xs", difficultyColors[video.category as keyof typeof difficultyColors])}
-                  >
-                    {video.category}
-                  </Badge>
-                  <h3 className="font-semibold text-foreground line-clamp-2">
-                    {video.title}
-                  </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {video.views} views
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
+                  <CardContent className="p-4">
+                    <Badge 
+                      variant="secondary" 
+                      className={cn("mb-2 text-xs", difficultyColors[video.category as keyof typeof difficultyColors])}
+                    >
+                      {video.category}
+                    </Badge>
+                    <h3 className="font-semibold text-foreground line-clamp-2">
+                      {video.title}
+                    </h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {video.views} views
+                    </p>
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         </TabsContent>
 
         {/* Assessments Tab */}
         <TabsContent value="assessments" className="space-y-4">
-          {assessments.map((assessment) => (
-            <Card 
-              key={assessment.id} 
-              className={cn(
-                "border-border/50 transition-all",
-                assessment.locked ? "opacity-60" : "hover:border-primary/50"
-              )}
-            >
-              <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-4">
-                  <div className={cn(
-                    "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
-                    assessment.completed ? "bg-primary/20" : "bg-accent"
-                  )}>
-                    {assessment.locked ? (
-                      <Lock className="h-6 w-6 text-muted-foreground" />
-                    ) : assessment.completed ? (
-                      <Award className={cn(
-                        "h-6 w-6",
-                        assessment.badge === "gold" ? "text-yellow-500" : "text-gray-400"
-                      )} />
-                    ) : (
-                      <ClipboardCheck className="h-6 w-6 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-foreground">
-                        {assessment.title}
-                      </h3>
-                      {assessment.completed && assessment.badge && (
-                        <Badge className={cn("text-xs", badgeColors[assessment.badge as keyof typeof badgeColors])}>
-                          {assessment.score}%
-                        </Badge>
+          {assessments.map((assessment) => {
+            const completed = isAssessmentCompleted(assessment)
+            const score = getAssessmentScore(assessment.id)
+
+            return (
+              <Card
+                key={assessment.id}
+                className={cn(
+                  "border-border/50 transition-all",
+                  assessment.locked ? "opacity-60" : "hover:border-primary/50"
+                )}
+              >
+                <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-4">
+                    <div
+                      className={cn(
+                        "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
+                        completed ? "bg-primary/20" : "bg-accent"
+                      )}
+                    >
+                      {assessment.locked ? (
+                        <Lock className="h-6 w-6 text-muted-foreground" />
+                      ) : completed ? (
+                        <Award className={cn("h-6 w-6", assessment.badge === "gold" ? "text-yellow-500" : "text-gray-400")} />
+                      ) : (
+                        <ClipboardCheck className="h-6 w-6 text-muted-foreground" />
                       )}
                     </div>
-                    <p className="mt-0.5 text-sm text-muted-foreground">
-                      {assessment.description}
-                    </p>
-                    <div className="mt-2 flex flex-wrap items-center gap-3">
-                      <Badge 
-                        variant="secondary" 
-                        className={cn("text-xs", difficultyColors[assessment.difficulty as keyof typeof difficultyColors])}
-                      >
-                        {assessment.difficulty}
-                      </Badge>
-                      <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <BookOpen className="h-3.5 w-3.5" />
-                        {assessment.questions} questions
-                      </span>
-                      <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Clock className="h-3.5 w-3.5" />
-                        {assessment.timeLimit}
-                      </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-foreground">{assessment.title}</h3>
+                        {typeof score === "number" && <Badge variant="outline" className="text-xs">{score}%</Badge>}
+                      </div>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        {assessment.description}
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-3">
+                        <Badge 
+                          variant="secondary" 
+                          className={cn("text-xs", difficultyColors[assessment.difficulty as keyof typeof difficultyColors])}
+                        >
+                          {assessment.difficulty}
+                        </Badge>
+                        <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <BookOpen className="h-3.5 w-3.5" />
+                          {assessment.questions} questions
+                        </span>
+                        <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Clock className="h-3.5 w-3.5" />
+                          {assessment.timeLimit}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  {assessment.completed && assessment.path ? (
-                    <Link to={assessment.path}>
-                      <Button variant="outline" size="sm" className="gap-1.5">
-                        Review
-                        <ChevronRight className="h-4 w-4" />
+                  <div className="flex items-center gap-3">
+                    {!assessment.locked && (
+                      <Button asChild size="sm" variant={completed ? "outline" : "default"} className="gap-1.5">
+                        <Link to={getAssessmentLink(assessment)} onClick={() => markAssessmentCompleted(assessment.id)}>
+                          {completed ? "Review" : "Start"}
+                          <ChevronRight className="h-4 w-4" />
+                        </Link>
                       </Button>
-                    </Link>
-                  ) : assessment.locked ? (
-                    <Button variant="outline" size="sm" disabled>
-                      Locked
-                    </Button>
-                  ) : assessment.path ? (
-                    <Link to={assessment.path}>
-                      <Button size="sm" className="gap-1.5">
-                        Start Test
-                        <ChevronRight className="h-4 w-4" />
+                    )}
+                    {assessment.locked && (
+                      <Button variant="outline" size="sm" disabled>
+                        Locked
                       </Button>
-                    </Link>
-                  ) : (
-                    <Button size="sm" className="gap-1.5" disabled>
-                      Coming Soon
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
         </TabsContent>
 
         {/* Resources Tab */}

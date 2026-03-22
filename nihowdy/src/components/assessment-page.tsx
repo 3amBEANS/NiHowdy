@@ -1,9 +1,14 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/Button"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, BookOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
+import {
+  FOOD_DRINKS_BY_LANGUAGE,
+  VOCAB_SET,
+} from "@/data/food-drinks-vocabulary"
+import { getLearnedWords } from "@/lib/learned-words"
 
 type Question = {
   id: string
@@ -192,17 +197,78 @@ const ASSESSMENTS: Record<
   },
 }
 
+type SettingsData = { learningLanguage?: string }
+const SETTINGS_KEY = "nihowdy.settings"
+
+function buildFoodDrinksQuestions(
+  languageKey: string
+): { title: string; description: string; questions: Question[] } {
+  const vocab =
+    FOOD_DRINKS_BY_LANGUAGE[languageKey] ?? FOOD_DRINKS_BY_LANGUAGE.Spanish
+  const learned = getLearnedWords(VOCAB_SET, languageKey)
+  const learnedItems = vocab.items.filter((i) => learned.includes(i.word))
+  const allMeanings = vocab.items.map((i) => i.meaning)
+
+  const questions: Question[] = learnedItems.map((item, idx) => {
+    const others = allMeanings.filter((m) => m !== item.meaning)
+    const shuffled = [...others].sort(() => Math.random() - 0.5)
+    const distractors = shuffled.slice(0, 3)
+    const options = [item.meaning, ...distractors].sort(
+      () => Math.random() - 0.5
+    )
+    const correctIndex = options.indexOf(item.meaning)
+    return {
+      id: `fd-${idx}`,
+      prompt: `What does "${item.word}"${item.pronunciation ? ` (${item.pronunciation})` : ""} mean?`,
+      options,
+      correctIndex,
+    }
+  })
+
+  return {
+    title: "Food & Drinks Quiz",
+    description: `Test yourself on ${learnedItems.length} learned word${learnedItems.length === 1 ? "" : "s"}`,
+    questions,
+  }
+}
+
 export default function AssessmentPage() {
   const { id } = useParams<{ id: string }>()
-  const assessment = id ? ASSESSMENTS[id] : null
+  const [settings, setSettings] = useState<SettingsData>({})
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY)
+      setSettings(raw ? (JSON.parse(raw) as SettingsData) : {})
+    } catch {
+      setSettings({})
+    }
+  }, [])
+
+  const languageKey = settings.learningLanguage ?? "Spanish"
+
+  const assessment = useMemo(() => {
+    if (!id) return null
+    if (id === "food-drinks") {
+      const built = buildFoodDrinksQuestions(languageKey)
+      if (built.questions.length === 0) return "no-learned-words"
+      return built
+    }
+    return ASSESSMENTS[id] ?? null
+  }, [id, languageKey])
 
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, number | null>>({})
   const [submitted, setSubmitted] = useState(false)
 
-  const questions = assessment?.questions ?? []
+  const questions =
+    assessment && assessment !== "no-learned-words"
+      ? assessment.questions
+      : []
   const current = questions[currentIndex]
   const selected = current ? answers[current.id] : null
+  const assessmentData =
+    assessment && assessment !== "no-learned-words" ? assessment : null
 
   const progress = useMemo(() => {
     if (questions.length === 0) return 0
@@ -227,7 +293,37 @@ export default function AssessmentPage() {
 
   const submitTest = () => setSubmitted(true)
 
-  if (!assessment) {
+  if (assessment === "no-learned-words") {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6 p-4">
+        <Link
+          to="/materials?tab=assessments"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Materials
+        </Link>
+        <Card className="border-border/50">
+          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+            <BookOpen className="h-12 w-12 text-muted-foreground" />
+            <p className="text-muted-foreground">
+              You haven&apos;t learned any Food & Drinks words yet. Check off some
+              words on the vocabulary page first, then come back to take the
+              quiz.
+            </p>
+            <Link to="/vocabulary/food-drinks">
+              <Button className="gap-2">
+                <BookOpen className="h-4 w-4" />
+                Go to Food & Drinks Vocabulary
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (!assessmentData) {
     return (
       <div className="mx-auto max-w-2xl space-y-6 p-4">
         <Link
@@ -263,10 +359,10 @@ export default function AssessmentPage() {
 
       <header>
         <h1 className="text-2xl font-semibold text-foreground">
-          {assessment.title}
+          {assessmentData.title}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {assessment.description}
+          {assessmentData.description}
         </p>
       </header>
 
