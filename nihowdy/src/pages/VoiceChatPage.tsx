@@ -7,6 +7,7 @@ const LANGUAGES = [
   { code: 'zh', label: '🇨🇳 Mandarin Chinese' },
   { code: 'ja', label: '🇯🇵 Japanese' },
   { code: 'ko', label: '🇰🇷 Korean' },
+  { code: 'hi', label: '🇮🇳 Hindi' },
   { code: 'es', label: '🇪🇸 Spanish' },
   { code: 'fr', label: '🇫🇷 French' },
   { code: 'en', label: '🇬🇧 English' },
@@ -17,7 +18,7 @@ const SAMPLE_MISSIONS: Mission[] = [
     description: 'Find out what the most popular food in the country is.',
     hint: 'Ask the bot about traditional or popular local dishes!',
     missionContext:
-      'The learner wants to know the most iconic national dish of the country whose language they are learning. You ARE that native speaker and you know the answer — Japanese: Ramen (ラーメン), Mandarin Chinese: Dumplings/Jiaozi (饺子), Korean: Kimchi (김치), Spanish: Paella, French: Croissant/Baguette, English: Fish and Chips. When the learner asks about food or cuisine, enthusiastically tell them the specific dish. Set missionComplete=true in the same response where you name the dish.',
+      'The learner wants to know the most iconic national dish of the country whose language they are learning. You ARE that native speaker and you know the answer — Japanese: Ramen (ラーメン), Mandarin Chinese: Dumplings/Jiaozi (饺子), Korean: Kimchi (김치), Hindi: Biryani (बिरयानी), Spanish: Paella, French: Croissant/Baguette, English: Fish and Chips. When the learner asks about food or cuisine, enthusiastically tell them the specific dish. Set missionComplete=true in the same response where you name the dish.',
     answer: 'Ramen',
     wrongChoices: ['Pizza', 'Tacos', 'Croissant'],
     xpReward: 120,
@@ -155,7 +156,7 @@ export default function VoiceChatPage() {
             <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Tips</p>
             <ul className="space-y-1.5 text-xs text-muted-foreground">
               <li>🎙️ Tap the mic to start speaking</li>
-              <li>⚠️ Orange badges = pronunciation to work on</li>
+              <li>🗺️ Click orange badges for accent map & mouth diagram</li>
               <li>🔥 Complete faster for XP bonus</li>
               <li>📚 Word bank tracks tricky words</li>
             </ul>

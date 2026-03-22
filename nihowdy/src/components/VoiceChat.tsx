@@ -1,6 +1,7 @@
 
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { PhonemeVisualizer, type PronFeedback } from './PhonemeVisualizer';
 
 // ── types ──────────────────────────────────────────────────────────────────
 
@@ -25,7 +26,9 @@ interface VoiceChatEvent {
   transcript?: string;
   response?: string;
   audio?: string;
+  useClientTTS?: boolean;
   pronunciationIssues?: WordResult[];
+  pronunciationFeedback?: PronFeedback[];
   missionComplete?: boolean;
   missionReason?: string;
   error?: string;
@@ -35,6 +38,7 @@ interface ConversationTurn {
   userText: string;
   aiText: string;
   pronunciationIssues: WordResult[];
+  pronunciationFeedback: PronFeedback[];
 }
 
 export interface Mission {
@@ -70,8 +74,17 @@ const LANG_NAMES: Record<string, string> = {
   zh: 'Mandarin Chinese',
   ja: 'Japanese',
   ko: 'Korean',
+  hi: 'Hindi',
   es: 'Spanish',
   fr: 'French',
+};
+
+// BCP-47 locale codes for Web Speech API
+const WEB_SPEECH_LANG: Record<string, string> = {
+  zh: 'zh-CN',
+  ja: 'ja-JP',
+  ko: 'ko-KR',
+  hi: 'hi-IN',
 };
 
 function shuffle<T>(arr: T[]): T[] {
@@ -122,6 +135,8 @@ export function VoiceChat({
   const [missionDone, setMissionDone] = useState(false);
   const [missionReason, setMissionReason] = useState('');
   const [error, setError] = useState('');
+  // activePronWord: { word, feedback[] } currently shown in accent map panel
+  const [activePronWord, setActivePronWord] = useState<{ word: string; feedback: PronFeedback[] } | null>(null);
 
   // ── quiz state ───────────────────────────────────────────────────────────
   const [quizPhase, setQuizPhase] = useState<QuizPhase>('none');
@@ -135,6 +150,7 @@ export function VoiceChat({
   const chunksRef = useRef<Blob[]>([]);
   const mimeTypeRef = useRef('audio/webm');
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const usingClientTTSRef = useRef(false);
   const conversationEndRef = useRef<HTMLDivElement | null>(null);
   // Set to true when the API says missionComplete; quiz fires when audio ends
   const pendingQuizRef = useRef(false);
@@ -245,6 +261,7 @@ export function VoiceChat({
             case 'thinking':
               pendingTurn.userText = ev.transcript ?? '';
               pendingTurn.pronunciationIssues = ev.pronunciationIssues ?? [];
+              pendingTurn.pronunciationFeedback = ev.pronunciationFeedback ?? [];
               setStatus('thinking');
               break;
 
@@ -254,13 +271,15 @@ export function VoiceChat({
               break;
 
             case 'done': {
-              if (!ev.audio) break;
+              if (!ev.audio && !ev.useClientTTS) break;
 
               const completedTurn: ConversationTurn = {
                 userText: pendingTurn.userText ?? '',
                 aiText: pendingTurn.aiText ?? ev.response ?? '',
                 pronunciationIssues:
                   ev.pronunciationIssues ?? pendingTurn.pronunciationIssues ?? [],
+                pronunciationFeedback:
+                  ev.pronunciationFeedback ?? pendingTurn.pronunciationFeedback ?? [],
               };
               setTurns((prev) => [...prev, completedTurn]);
 
@@ -281,28 +300,44 @@ export function VoiceChat({
                 if (hasQuiz) pendingQuizRef.current = true;
               }
 
-              setStatus('playing');
-              const audio = new Audio(`data:audio/mpeg;base64,${ev.audio}`);
-              audioRef.current = audio;
-              audio.onended = () => {
+              const onSpeechEnd = () => {
+                usingClientTTSRef.current = false;
                 setStatus('idle');
-                // Launch the quiz after the AI finishes speaking
                 if (pendingQuizRef.current && mission?.answer && mission?.wrongChoices) {
                   pendingQuizRef.current = false;
-                  setShuffledChoices(
-                    shuffle([mission.answer, ...mission.wrongChoices])
-                  );
+                  setShuffledChoices(shuffle([mission.answer, ...mission.wrongChoices]));
                   setQuizPhase('quiz');
                 }
               };
-              audio.onerror = () => {
-                setError('Failed to play audio.');
-                setStatus('error');
-              };
-              audio.play().catch(() => {
-                setError('Browser blocked autoplay — tap to retry.');
-                setStatus('error');
-              });
+
+              setStatus('playing');
+
+              if (ev.useClientTTS && ev.response) {
+                usingClientTTSRef.current = true;
+                const utter = new SpeechSynthesisUtterance(ev.response);
+                utter.lang = WEB_SPEECH_LANG[language] ?? language;
+                utter.onend = onSpeechEnd;
+                utter.onerror = () => {
+                  usingClientTTSRef.current = false;
+                  setError('Speech synthesis failed.');
+                  setStatus('error');
+                };
+                window.speechSynthesis.cancel();
+                window.speechSynthesis.speak(utter);
+              } else if (ev.audio) {
+                usingClientTTSRef.current = false;
+                const audio = new Audio(`data:audio/mpeg;base64,${ev.audio}`);
+                audioRef.current = audio;
+                audio.onended = onSpeechEnd;
+                audio.onerror = () => {
+                  setError('Failed to play audio.');
+                  setStatus('error');
+                };
+                audio.play().catch(() => {
+                  setError('Browser blocked autoplay — tap to retry.');
+                  setStatus('error');
+                });
+              }
               break;
             }
 
@@ -353,7 +388,14 @@ export function VoiceChat({
     setSelectedChoice(null);
     setStatus('idle');
     setError('');
+    setActivePronWord(null);
     pendingQuizRef.current = false;
+  };
+
+  const handlePronBadgeClick = (word: string, feedback: PronFeedback[]) => {
+    setActivePronWord((prev) =>
+      prev?.word === word ? null : { word, feedback }
+    );
   };
 
   // ── button ────────────────────────────────────────────────────────────────
@@ -362,7 +404,12 @@ export function VoiceChat({
     if (status === 'idle' || status === 'error') startRecording();
     else if (status === 'recording') stopRecording();
     else if (status === 'playing') {
-      audioRef.current?.pause();
+      if (usingClientTTSRef.current) {
+        window.speechSynthesis.cancel();
+        usingClientTTSRef.current = false;
+      } else {
+        audioRef.current?.pause();
+      }
       setStatus('idle');
     }
   };
@@ -445,15 +492,23 @@ export function VoiceChat({
                 </div>
                 {turn.pronunciationIssues.length > 0 && (
                   <div className="mt-1 flex flex-wrap gap-1 justify-end">
-                    {turn.pronunciationIssues.map((w, j) => (
-                      <span
-                        key={j}
-                        title={`Confidence: ${Math.round(w.confidence * 100)}%`}
-                        className="text-xs bg-orange-950/60 border border-orange-700/40 text-orange-300 px-2 py-0.5 rounded-full cursor-help"
-                      >
-                        ⚠ {w.word}
-                      </span>
-                    ))}
+                    {turn.pronunciationIssues.map((w, j) => {
+                      const isActive = activePronWord?.word === w.word;
+                      return (
+                        <button
+                          key={j}
+                          onClick={() => handlePronBadgeClick(w.word, turn.pronunciationFeedback)}
+                          title={`Confidence: ${Math.round(w.confidence * 100)}% — click for accent map`}
+                          className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
+                            isActive
+                              ? 'bg-orange-500/30 border border-orange-400/60 text-orange-200'
+                              : 'bg-orange-950/60 border border-orange-700/40 text-orange-300 hover:bg-orange-900/50'
+                          }`}
+                        >
+                          {isActive ? '🗺' : '⚠'} {w.word}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -465,6 +520,23 @@ export function VoiceChat({
             </div>
           ))}
           <div ref={conversationEndRef} />
+        </div>
+      )}
+
+      {/* ── Accent map panel ──────────────────────────────────── */}
+      {activePronWord && activePronWord.feedback.length > 0 && (
+        <div className="relative">
+          <button
+            onClick={() => setActivePronWord(null)}
+            className="absolute top-2 right-2 z-10 text-gray-600 hover:text-gray-400 text-xs px-1.5"
+            aria-label="Close accent map"
+          >
+            ✕
+          </button>
+          <PhonemeVisualizer
+            feedback={activePronWord.feedback}
+            language={language}
+          />
         </div>
       )}
 
