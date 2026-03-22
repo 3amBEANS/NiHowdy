@@ -17,16 +17,16 @@ const SAMPLE_MISSIONS: Mission[] = [
     description: 'Find out what the most popular food in the country is.',
     hint: 'Ask the bot about traditional or popular local dishes!',
     missionContext:
-      'The learner wants to know about the most popular or iconic food in the country of the language they are learning.',
-    answer: 'Varies by language — the bot will reveal it!',
-    wrongChoices: ['Pizza', 'Sushi', 'Tacos'],
+      'The learner wants to know the most iconic national dish of the country whose language they are learning. You ARE that native speaker and you know the answer — Japanese: Ramen (ラーメン), Mandarin Chinese: Dumplings/Jiaozi (饺子), Korean: Kimchi (김치), Spanish: Paella, French: Croissant/Baguette, English: Fish and Chips. When the learner asks about food or cuisine, enthusiastically tell them the specific dish. Set missionComplete=true in the same response where you name the dish.',
+    answer: 'Ramen',
+    wrongChoices: ['Pizza', 'Tacos', 'Croissant'],
     xpReward: 120,
   },
   {
     description: 'Ask for directions to the nearest train station.',
     hint: 'Try saying "Where is the train station?" in the language!',
     missionContext:
-      'The learner wants directions to the nearest train station. Give helpful directional instructions in the target language.',
+      'The learner wants directions to the nearest train station. You are a local who knows the way. When the learner asks for directions, give them a simple set of directions (e.g. turn left, go straight two blocks). Set missionComplete=true in the same response where you give them the actual directions.',
     answer: 'Turn left at the corner, then go straight for 2 blocks',
     wrongChoices: ['Take the bus line 5', 'It is across the bridge', 'Walk south for 10 minutes'],
     xpReward: 100,
@@ -35,7 +35,7 @@ const SAMPLE_MISSIONS: Mission[] = [
     description: 'Order a coffee at a café.',
     hint: 'Ask for a coffee — try adding "please" in the language!',
     missionContext:
-      'The learner is at a café and wants to order a coffee. Play the role of a friendly barista.',
+      'The learner is at a café and wants to order a coffee. Play the role of a friendly barista. The mission is complete as soon as the learner has asked for a coffee and you have accepted the order — you do NOT need to ask follow-up questions about size or type. Keep it simple: accept the order and confirm it. Set missionComplete=true in the same response where you confirm the order.',
     answer: 'One coffee coming right up!',
     wrongChoices: ['Sorry, we are closed', 'We only serve tea', 'You need a reservation'],
     xpReward: 80,

@@ -10,6 +10,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
 const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY!;
 
 const VOICE_ID = 'pNInz6obpgDQGcFmaJgB'; // Adam — multilingual v2
+const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
 
 // ── language config ────────────────────────────────────────────────────────
 const LANG: Record<string, { code: string; model: string; name: string }> = {
@@ -29,9 +30,8 @@ function buildSystemPrompt(language: string, missionContext?: string): string {
   const mission = missionContext
     ? `\n\nMISSION: The learner is trying to accomplish this goal through conversation: "${missionContext}". You have information that can help them, but make them ask for it naturally — don't volunteer the answer immediately.`
     : '';
-  const format = `\n\nRespond with ONLY valid JSON (no markdown, no code fences):
-{"reply":"your ${lang.name} response","missionComplete":false,"missionReason":""}
-Set missionComplete=true when the learner has clearly obtained the information they were looking for based on what you just told them. missionReason is a brief English explanation (shown to the learner).`;
+  const format = `\n\nYou MUST respond with valid JSON matching this exact shape: {"reply":"...","missionComplete":false,"missionReason":""}
+IMPORTANT: Set missionComplete=true in the SAME turn where YOU reveal the key information the learner was seeking — not before, not after. Every other turn must have missionComplete=false. missionReason is a brief English sentence explaining what they learned (shown to the learner).`;
   return persona + mission + format;
 }
 
@@ -98,7 +98,7 @@ async function generateResponse(
     { role: 'user', parts: [{ text: transcript }] },
   ];
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -111,6 +111,15 @@ async function generateResponse(
           maxOutputTokens: 550,
           temperature: 1.0,
           responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'OBJECT',
+            properties: {
+              reply:           { type: 'STRING' },
+              missionComplete: { type: 'BOOLEAN' },
+              missionReason:   { type: 'STRING' },
+            },
+            required: ['reply', 'missionComplete', 'missionReason'],
+          },
         },
       }),
     }
