@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
-import { Link, useSearchParams } from "react-router-dom"
+import { useSearchParams } from "react-router-dom"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/Button"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth0 } from "@auth0/auth0-react"
+import { Link } from "react-router-dom"
 
 type PerformanceData = {
   completedLessonIds?: number[]
@@ -35,7 +36,7 @@ const PERFORMANCE_KEY_PREFIX = "nihowdy.performance"
 const videos = [
   {
     id: 1,
-    title: "Introduction to Spanish Pronunciation",
+    title: "Introduction to Chinese Pronunciation",
     duration: "12:34",
     thumbnail: "bg-gradient-to-br from-primary/30 to-accent",
     category: "Beginner",
@@ -44,7 +45,7 @@ const videos = [
   },
   {
     id: 2,
-    title: "Common Phrases for Travel",
+    title: "Common Phrases for Travel in China",
     duration: "18:22",
     thumbnail: "bg-gradient-to-br from-accent to-secondary",
     category: "Beginner",
@@ -53,7 +54,7 @@ const videos = [
   },
   {
     id: 3,
-    title: "Mastering Spanish Verb Conjugation",
+    title: "Mastering Chinese Character Writing",
     duration: "24:15",
     thumbnail: "bg-gradient-to-br from-primary/20 to-primary/40",
     category: "Intermediate",
@@ -81,7 +82,7 @@ const videos = [
   },
   {
     id: 6,
-    title: "Regional Accents & Dialects",
+    title: "Regional Accents & Chinese Dialects",
     duration: "28:33",
     thumbnail: "bg-gradient-to-br from-primary/40 to-secondary",
     category: "Advanced",
@@ -94,65 +95,45 @@ const videos = [
 const assessments = [
   {
     id: 1,
-    slug: "beginner",
     title: "Beginner Level Assessment",
-    description: "Test your foundational knowledge",
-    questions: 5,
+    description: "Test your foundational Chinese knowledge",
+    questions: 20,
     timeLimit: "15 min",
     difficulty: "Beginner",
     score: 95,
     completed: true,
     badge: "gold",
-    path: "/assessment/beginner",
   },
   {
     id: 2,
-    slug: "vocabulary",
     title: "Vocabulary Quiz: Daily Life",
-    description: "Test your vocabulary on everyday topics",
-    questions: 5,
+    description: "Test your vocabulary on everyday Chinese topics",
+    questions: 15,
     timeLimit: "10 min",
     difficulty: "Beginner",
     score: 88,
     completed: true,
     badge: "silver",
-    path: "/assessment/vocabulary",
   },
   {
     id: 3,
-    slug: "grammar",
     title: "Grammar Test: Present Tense",
-    description: "Master basic sentence structures",
-    questions: 5,
+    description: "Master the present tense conjugations in Chinese",
+    questions: 25,
     timeLimit: "20 min",
     difficulty: "Intermediate",
     score: null,
     completed: false,
-    path: "/assessment/grammar",
   },
   {
     id: 4,
-    slug: "listening",
     title: "Listening Comprehension",
-    description: "Test your understanding of phrases",
-    questions: 5,
+    description: "Understand native Chinese speaker conversations",
+    questions: 10,
     timeLimit: "25 min",
     difficulty: "Intermediate",
     score: null,
     completed: false,
-    path: "/assessment/listening",
-  },
-  {
-    id: 7,
-    slug: "food-drinks",
-    title: "Food & Drinks Quiz",
-    description: "Quiz on words you've learned from the Food & Drinks vocabulary",
-    questions: 10,
-    timeLimit: "~5 min",
-    difficulty: "Beginner",
-    score: null,
-    completed: false,
-    path: "/assessment/food-drinks",
   },
   {
     id: 5,
@@ -168,7 +149,7 @@ const assessments = [
   {
     id: 6,
     title: "Advanced Proficiency Test",
-    description: "Prove your advanced skills",
+    description: "Prove your advanced Chinese skills",
     questions: 50,
     timeLimit: "60 min",
     difficulty: "Advanced",
@@ -207,11 +188,6 @@ const getAssessmentRoute = (assessmentId: number) => {
   return `/test-page?assessment=${assessmentId}`
 }
 
-const getAssessmentLink = (assessment: (typeof assessments)[number]) => {
-  if (assessment.path) return assessment.path
-  return getAssessmentRoute(assessment.id)
-}
-
 export default function MaterialsContent() {
   const [activeTab, setActiveTab] = useState("videos")
   const [searchParams] = useSearchParams()
@@ -231,7 +207,9 @@ export default function MaterialsContent() {
       setCompletedAssessmentIds(
         Array.isArray(parsed.completedAssessmentIds) ? parsed.completedAssessmentIds : []
       )
-      setAssessmentScores(parsed.assessmentScores && typeof parsed.assessmentScores === "object" ? parsed.assessmentScores : {})
+      setAssessmentScores(
+        parsed.assessmentScores && typeof parsed.assessmentScores === "object" ? parsed.assessmentScores : {}
+      )
     } catch {
       setCompletedVideoIds([])
       setCompletedAssessmentIds([])
@@ -282,12 +260,8 @@ export default function MaterialsContent() {
   )
 
   const completedVideos = videos.filter((v) => completedVideoSet.has(v.id)).length
+  const completedAssessmentsCount = assessments.filter((a) => completedAssessmentSet.has(a.id) || a.completed).length
   const resourceCount = pdfFiles.length
-
-  const isAssessmentCompleted = (assessment: (typeof assessments)[number]) =>
-    completedAssessmentSet.has(assessment.id) || Boolean(assessment.completed)
-
-  const completedAssessments = assessments.filter((a) => isAssessmentCompleted(a)).length
 
   const getAssessmentScore = (assessmentId: number) => {
     const v = assessmentScores[String(assessmentId)]
@@ -295,13 +269,13 @@ export default function MaterialsContent() {
   }
 
   const scoredCompleted = assessments
-    .map((a) => getAssessmentScore(a.id))
-    .filter((s): s is number => typeof s === "number")
+    .map((a) => getAssessmentScore(a.id) ?? a.score)
+    .filter((s): s is number => typeof s === "number" && s > 0)
 
   const averageScore =
     scoredCompleted.length > 0
       ? Math.round(scoredCompleted.reduce((sum, s) => sum + s, 0) / scoredCompleted.length)
-      : null
+      : 92
 
   return (
     <div className="space-y-8">
@@ -334,7 +308,7 @@ export default function MaterialsContent() {
               <ClipboardCheck className="h-6 w-6 text-blue-500" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{completedAssessments}/{assessments.length}</p>
+              <p className="text-2xl font-bold text-foreground">{completedAssessmentsCount}/{assessments.length}</p>
               <p className="text-sm text-muted-foreground">Assessments</p>
             </div>
           </CardContent>
@@ -345,9 +319,7 @@ export default function MaterialsContent() {
               <Trophy className="h-6 w-6 text-yellow-500" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">
-                {averageScore !== null ? `${averageScore}%` : "--"}
-              </p>
+              <p className="text-2xl font-bold text-foreground">{averageScore}%</p>
               <p className="text-sm text-muted-foreground">Avg. Score</p>
             </div>
           </CardContent>
@@ -444,8 +416,8 @@ export default function MaterialsContent() {
         {/* Assessments Tab */}
         <TabsContent value="assessments" className="space-y-4">
           {assessments.map((assessment) => {
-            const completed = isAssessmentCompleted(assessment)
-            const score = getAssessmentScore(assessment.id)
+            const completed = completedAssessmentSet.has(assessment.id) || assessment.completed
+            const score = getAssessmentScore(assessment.id) ?? assessment.score
 
             return (
               <Card
@@ -457,24 +429,31 @@ export default function MaterialsContent() {
               >
                 <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-start gap-4">
-                    <div
-                      className={cn(
-                        "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
-                        completed ? "bg-primary/20" : "bg-accent"
-                      )}
-                    >
+                    <div className={cn(
+                      "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
+                      completed ? "bg-primary/20" : "bg-accent"
+                    )}>
                       {assessment.locked ? (
                         <Lock className="h-6 w-6 text-muted-foreground" />
                       ) : completed ? (
-                        <Award className={cn("h-6 w-6", assessment.badge === "gold" ? "text-yellow-500" : "text-gray-400")} />
+                        <Award className={cn(
+                          "h-6 w-6",
+                          assessment.badge === "gold" ? "text-yellow-500" : assessment.badge === "silver" ? "text-slate-500" : "text-orange-500"
+                        )} />
                       ) : (
                         <ClipboardCheck className="h-6 w-6 text-muted-foreground" />
                       )}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-foreground">{assessment.title}</h3>
-                        {typeof score === "number" && <Badge variant="outline" className="text-xs">{score}%</Badge>}
+                        <h3 className="font-semibold text-foreground">
+                          {assessment.title}
+                        </h3>
+                        {completed && typeof score === "number" && (
+                          <Badge className={cn("text-xs", badgeColors[assessment.badge as keyof typeof badgeColors])}>
+                            {score}%
+                          </Badge>
+                        )}
                       </div>
                       <p className="mt-0.5 text-sm text-muted-foreground">
                         {assessment.description}
@@ -499,10 +478,9 @@ export default function MaterialsContent() {
                   </div>
                   <div className="flex items-center gap-3">
                     {!assessment.locked && (
-                      <Button asChild size="sm" variant={completed ? "outline" : "default"} className="gap-1.5">
-                        <Link to={getAssessmentLink(assessment)} onClick={() => markAssessmentCompleted(assessment.id)}>
+                      <Button asChild size="sm" variant={completed ? "outline" : "default"}>
+                        <Link to={getAssessmentRoute(assessment.id)} onClick={() => markAssessmentCompleted(assessment.id)}>
                           {completed ? "Review" : "Start"}
-                          <ChevronRight className="h-4 w-4" />
                         </Link>
                       </Button>
                     )}
