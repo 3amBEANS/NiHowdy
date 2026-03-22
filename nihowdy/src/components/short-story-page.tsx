@@ -5,14 +5,23 @@ type SettingsData = {
   learningLanguage?: string;
 };
 
+type VocabItem = {
+  term: string;
+  meaning: string;
+  pinyin?: string;
+};
+
 type StoryPack = {
   title: string;
   level: string;
   story: string[];
+  pinyin?: string[];
   translation: string[];
-  vocab: { term: string; meaning: string }[];
+  vocab: VocabItem[];
   question: string;
+  questionPinyin?: string;
   answer: string;
+  answerPinyin?: string;
 };
 
 const SETTINGS_KEY = "nihowdy.settings";
@@ -43,35 +52,49 @@ const STORIES: Record<string, StoryPack> = {
     title: "早上的公园",
     level: "Beginner",
     story: ["早上，小明去公园。", "他在公园跑步，然后喝水。", "最后，他回家吃早餐。"],
+    pinyin: [
+      "Zǎoshang, Xiǎomíng qù gōngyuán.",
+      "Tā zài gōngyuán pǎobù, ránhòu hē shuǐ.",
+      "Zuìhòu, tā huí jiā chī zǎocān.",
+    ],
     translation: [
       "In the morning, Xiaoming goes to the park.",
       "He jogs in the park, then drinks water.",
       "Finally, he goes home and eats breakfast.",
     ],
     vocab: [
-      { term: "公园", meaning: "park" },
-      { term: "跑步", meaning: "jogging" },
-      { term: "早餐", meaning: "breakfast" },
+      { term: "公园", pinyin: "gōngyuán", meaning: "park" },
+      { term: "跑步", pinyin: "pǎobù", meaning: "jogging" },
+      { term: "早餐", pinyin: "zǎocān", meaning: "breakfast" },
     ],
     question: "小明最后做什么？",
+    questionPinyin: "Xiǎomíng zuìhòu zuò shénme?",
     answer: "他回家吃早餐。",
+    answerPinyin: "Tā huí jiā chī zǎocān.",
   },
   Chinese: {
     title: "早上的公园",
     level: "Beginner",
     story: ["早上，小明去公园。", "他在公园跑步，然后喝水。", "最后，他回家吃早餐。"],
+    pinyin: [
+      "Zǎoshang, Xiǎomíng qù gōngyuán.",
+      "Tā zài gōngyuán pǎobù, ránhòu hē shuǐ.",
+      "Zuìhòu, tā huí jiā chī zǎocān.",
+    ],
     translation: [
       "In the morning, Xiaoming goes to the park.",
       "He jogs in the park, then drinks water.",
       "Finally, he goes home and eats breakfast.",
     ],
     vocab: [
-      { term: "公园", meaning: "park" },
-      { term: "跑步", meaning: "jogging" },
-      { term: "早餐", meaning: "breakfast" },
+      { term: "公园", pinyin: "gōngyuán", meaning: "park" },
+      { term: "跑步", pinyin: "pǎobù", meaning: "jogging" },
+      { term: "早餐", pinyin: "zǎocān", meaning: "breakfast" },
     ],
     question: "小明最后做什么？",
+    questionPinyin: "Xiǎomíng zuìhòu zuò shénme?",
     answer: "他回家吃早餐。",
+    answerPinyin: "Tā huí jiā chī zǎocān.",
   },
   Korean: {
     title: "아침 산책",
@@ -175,9 +198,12 @@ export default function ShortStoryPage() {
 
         <div className="space-y-2">
           {storyPack.story.map((line, i) => (
-            <p key={`line-${i}`} className="text-foreground">
-              {line}
-            </p>
+            <div key={`line-${i}`}>
+              <p className="text-foreground">{line}</p>
+              {storyPack.pinyin?.[i] && (
+                <p className="text-sm text-muted-foreground">{storyPack.pinyin[i]}</p>
+              )}
+            </div>
           ))}
         </div>
 
@@ -203,7 +229,10 @@ export default function ShortStoryPage() {
         <ul className="space-y-2">
           {storyPack.vocab.map((v) => (
             <li key={v.term} className="flex items-center justify-between rounded-md border px-3 py-2">
-              <span className="font-medium">{v.term}</span>
+              <div>
+                <span className="font-medium">{v.term}</span>
+                {v.pinyin && <p className="text-xs text-muted-foreground">{v.pinyin}</p>}
+              </div>
               <span className="text-sm text-muted-foreground">{v.meaning}</span>
             </li>
           ))}
@@ -213,6 +242,10 @@ export default function ShortStoryPage() {
       <section className="rounded-xl border bg-card p-5">
         <h3 className="mb-2 text-base font-semibold">Comprehension Check</h3>
         <p className="text-sm">{storyPack.question}</p>
+        {storyPack.questionPinyin && (
+          <p className="mt-1 text-xs text-muted-foreground">{storyPack.questionPinyin}</p>
+        )}
+
         <button
           type="button"
           onClick={() => setShowAnswer((v) => !v)}
@@ -220,11 +253,17 @@ export default function ShortStoryPage() {
         >
           {showAnswer ? "Hide answer" : "Reveal answer"}
         </button>
+
         {showAnswer && (
-          <p className="mt-3 flex items-center gap-2 text-sm text-primary">
-            <CheckCircle2 className="h-4 w-4" />
-            {storyPack.answer}
-          </p>
+          <div className="mt-3 text-sm text-primary">
+            <p className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              {storyPack.answer}
+            </p>
+            {storyPack.answerPinyin && (
+              <p className="ml-6 mt-1 text-xs text-muted-foreground">{storyPack.answerPinyin}</p>
+            )}
+          </div>
         )}
       </section>
     </main>
