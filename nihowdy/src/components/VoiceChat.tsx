@@ -380,7 +380,7 @@ export function VoiceChat({
           <span className="text-xs uppercase tracking-widest text-gray-500 font-medium">
             Practicing
           </span>
-          <span className="bg-indigo-900/60 border border-indigo-700/50 text-indigo-300 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+          <span className="bg-indigo-500 border border-indigo-400/50 text-white text-xs font-semibold px-2.5 py-0.5 rounded-full">
             {langLabel}
           </span>
         </div>
@@ -397,29 +397,35 @@ export function VoiceChat({
       {/* ── Mission card ──────────────────────────────────────── */}
       {mission && (
         <div
-          className={`rounded-2xl p-4 border transition-all duration-500 ${
-            missionDone && quizPhase === 'none'
-              ? 'bg-emerald-950/60 border-emerald-600/50'
-              : 'bg-amber-950/40 border-amber-700/40'
-          }`}
+          style={{
+            backgroundColor: missionDone && quizPhase === 'none'
+              ? 'rgb(17,53,37)'
+              : 'rgb(244, 67, 54)',
+            borderColor: missionDone && quizPhase === 'none'
+              ? 'rgba(34,197,94,0.4)'
+              : 'rgba(99,102,241,0.4)',
+          }}
+          className="rounded-2xl p-4 border transition-all duration-500"
         >
           <div className="flex items-start gap-3">
             <span className="text-xl flex-shrink-0">
               {missionDone && quizPhase === 'none' ? '✅' : '🎯'}
             </span>
             <div className="flex-1 min-w-0">
-              <p className="text-xs uppercase tracking-widest text-amber-500/80 mb-1">
+              <p className={`text-xs uppercase tracking-widest mb-1 ${
+                missionDone && quizPhase === 'none' ? 'text-emerald-400' : 'text-white'
+              }`}>
                 {missionDone && quizPhase === 'none' ? 'Mission complete!' : 'Your mission'}
               </p>
               <p className="text-gray-100 text-sm font-medium">{mission.description}</p>
               {mission.hint && !missionDone && (
-                <p className="text-gray-600 text-xs mt-1">💡 {mission.hint}</p>
+                <p className="text-white text-xs mt-1">💡 {mission.hint}</p>
               )}
               {missionDone && missionReason && quizPhase === 'none' && (
                 <p className="text-emerald-400 text-xs mt-1">{missionReason}</p>
               )}
               {hasQuiz && !missionDone && (
-                <p className="text-amber-700/60 text-xs mt-2">
+                <p className="text-white text-xs mt-2">
                   ✨ Quiz unlocks when you find the answer
                 </p>
               )}
