@@ -1,4 +1,3 @@
-"use client"
 
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,10 +15,10 @@ import {
   MessageCircle,
   ChevronRight,
   CheckCircle2,
-  Circle,
+  
   Sparkles
 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn } from "../lib/utils"
 
 const weeklyPlan = [
   {
@@ -297,3 +296,5 @@ export function StudyPlanDashboard() {
     </div>
   )
 }
+
+export default StudyPlanDashboard

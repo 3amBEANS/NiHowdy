@@ -1,9 +1,6 @@
-"use client"
-
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { BookOpen, Calendar, Video, ClipboardCheck, User } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Link, useLocation } from "react-router-dom"
+import { BookOpen, Calendar, Video, User } from "lucide-react"
+import { cn } from "../lib/utils"
 
 const navItems = [
   { href: "/", label: "Study Plan", icon: Calendar },
@@ -11,12 +8,12 @@ const navItems = [
 ]
 
 export function Navigation() {
-  const pathname = usePathname()
+  const { pathname } = useLocation()
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
             <BookOpen className="h-5 w-5 text-primary-foreground" />
           </div>
@@ -30,7 +27,7 @@ export function Navigation() {
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                to={item.href}
                 className={cn(
                   "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   isActive
@@ -54,3 +51,5 @@ export function Navigation() {
     </header>
   )
 }
+
+export default Navigation
