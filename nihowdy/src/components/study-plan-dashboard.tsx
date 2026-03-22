@@ -45,7 +45,7 @@ const weeklyPlan = [
   {
     day: "Wednesday",
     lessons: [
-      { id: 5, title: "Reading: Short Story", type: "reading", duration: "20 min", completed: false },
+      { id: 5, title: "Reading: Chinese Article", type: "article", duration: "20 min", completed: false },
       { id: 6, title: "Writing Exercise", type: "writing", duration: "15 min", completed: false },
     ],
   },
@@ -81,17 +81,22 @@ const typeIcons: Record<string, ElementType> = {
   writing: PenTool,
   review: Sparkles,
   assessment: Trophy,
+  article: BookOpen,
 }
 
 const getLessonRoute = (type: string) => {
-  if (type === "reading") return "/stories"
+  if (type === "reading" || type === "article") return "/articles"
   if (type === "assessment") return "/test-page"
+  if (type === "speaking") return "/voice-chat"
+  if (type === "video") return "/video"
   return "/materials"
 }
 
 const getLessonButtonLabel = (type: string) => {
-  if (type === "reading") return "Read Story"
+  if (type === "reading" || type === "article") return "Read Article"
   if (type === "assessment") return "Start Test"
+  if (type === "speaking") return "Start Voice Chat"
+  if (type === "video") return "Watch Video"
   return "Open"
 }
 

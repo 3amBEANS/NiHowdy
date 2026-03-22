@@ -44,7 +44,7 @@ const weeklyPlan: DayPlan[] = [
     day: "Wednesday",
     short: "Wed",
     lessons: [
-      { id: 5, title: "Reading: Short Story", type: "reading", duration: "20 min", completed: false },
+      { id: 5, title: "Reading: Chinese Dialogue", type: "article", duration: "20 min", completed: false },
       { id: 6, title: "Writing Exercise", type: "writing", duration: "15 min", completed: false },
     ],
   },
@@ -54,6 +54,7 @@ const weeklyPlan: DayPlan[] = [
     lessons: [
       { id: 7, title: "Vocabulary: Food & Drinks", type: "vocabulary", duration: "15 min", completed: false },
       { id: 8, title: "Grammar: Articles", type: "grammar", duration: "20 min", completed: false },
+      { id: 11, title: "Video Lesson: Ordering at a Café", type: "video", duration: "12 min", completed: false },
     ],
   },
   {
@@ -68,14 +69,18 @@ const weeklyPlan: DayPlan[] = [
 ]
 
 const getLessonRoute = (type: string) => {
-  if (type === "reading") return "/stories"
+  if (type === "reading" || type === "article") return "/articles"
   if (type === "assessment") return "/test-page"
+  if (type === "speaking") return "/voice-chat"
+  if (type === "video") return "/video"
   return "/materials"
 }
 
 const getLessonButtonLabel = (type: string) => {
-  if (type === "reading") return "Read Story"
+  if (type === "reading" || type === "article") return "Read Dialogue"
   if (type === "assessment") return "Start Test"
+  if (type === "speaking") return "Start Voice Chat"
+  if (type === "video") return "Watch Video"
   return "Open"
 }
 
