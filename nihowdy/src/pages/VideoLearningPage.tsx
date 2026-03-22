@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { BookOpen, Play, Star, Loader2, X, ChevronRight, RotateCcw, Volume2 } from 'lucide-react'
+import { useWordBank, type WordBankItem } from '@/hooks/useWordBank'
 
 // ── types ─────────────────────────────────────────────────────────────────
 
@@ -23,13 +24,7 @@ interface VideoAnalysis {
   segments: ProcessedSegment[]
 }
 
-interface WordBankEntry {
-  word: string
-  translation: string
-  context: string
-  difficulty: number
-  addedAt: number
-}
+type WordBankEntry = WordBankItem
 
 type PageStatus = 'idle' | 'fetching' | 'analyzing' | 'ready' | 'error'
 type ActiveTab = 'video' | 'wordbank' | 'quiz'
@@ -259,7 +254,8 @@ export default function VideoLearningPage() {
   const [analysis, setAnalysis] = useState<VideoAnalysis | null>(null)
   const [currentTime, setCurrentTime] = useState(0)
   const [userDifficulty, setUserDifficulty] = useState(3)
-  const [wordBank, setWordBank] = useState<WordBankEntry[]>([])
+  const { items: allWords, addItem, removeItem } = useWordBank()
+  const wordBank = allWords.filter(w => w.source === 'video')
   const [activeTab, setActiveTab] = useState<ActiveTab>('video')
   const [showQuiz, setShowQuiz] = useState(false)
   const [tooltip, setTooltip] = useState<{ word: ProcessedWord; x: number; y: number } | null>(null)
@@ -336,24 +332,19 @@ export default function VideoLearningPage() {
   }, [urlInput, targetLang])
 
   const addToWordBank = (word: ProcessedWord, context: string) => {
-    setWordBank((prev) => {
-      if (prev.some((w) => w.word === word.text)) return prev
-      return [
-        {
-          word: word.text,
-          translation: word.translation ?? '',
-          context,
-          difficulty: word.difficulty,
-          addedAt: Date.now(),
-        },
-        ...prev,
-      ]
+    addItem({
+      word: word.text,
+      translation: word.translation ?? '',
+      context,
+      source: 'video',
+      difficulty: word.difficulty,
+      language: LANGUAGES.find(l => l.code === targetLang)?.label.slice(3),
     })
     setTooltip(null)
   }
 
   const removeFromWordBank = (word: string) => {
-    setWordBank((prev) => prev.filter((w) => w.word !== word))
+    removeItem(word)
   }
 
   // Close tooltip on outside click
@@ -395,7 +386,12 @@ export default function VideoLearningPage() {
       {tooltip && (
         <div
           className="fixed z-50 rounded-xl border border-border bg-card p-3 shadow-2xl w-56"
-          style={{ left: Math.min(tooltip.x, window.innerWidth - 240), top: tooltip.y + 12 }}
+          style={{
+            left: Math.min(tooltip.x, window.innerWidth - 240),
+            top: tooltip.y + 140 > window.innerHeight
+              ? tooltip.y - 148
+              : tooltip.y + 12,
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-1">
@@ -672,11 +668,11 @@ export default function VideoLearningPage() {
                         {wordBank.map((entry) => (
                           <div
                             key={entry.word}
-                            className={`rounded-xl border p-3 ${DIFF_BG[entry.difficulty]}`}
+                            className={`rounded-xl border p-3 ${DIFF_BG[entry.difficulty ?? 3]}`}
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex-1 min-w-0">
-                                <p className={`font-semibold text-sm ${DIFF_COLORS[entry.difficulty]}`}>
+                                <p className={`font-semibold text-sm ${DIFF_COLORS[entry.difficulty ?? 3]}`}>
                                   {entry.word}
                                 </p>
                                 {entry.translation && (
