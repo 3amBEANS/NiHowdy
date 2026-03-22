@@ -1,10 +1,12 @@
 import { Link, useLocation } from "react-router-dom"
-import { BookOpen, Calendar, Video, User } from "lucide-react"
+import { BookOpen, Calendar, Video, User, Mic, Youtube } from "lucide-react"
 import { cn } from "../lib/utils"
 
 const navItems = [
   { href: "/", label: "Study Plan", icon: Calendar },
   { href: "/materials", label: "Materials", icon: Video },
+  { href: "/voice-chat", label: "Voice Chat", icon: Mic },
+  { href: "/video", label: "Video", icon: Youtube },
 ]
 
 export function Navigation() {
