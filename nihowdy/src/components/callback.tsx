@@ -9,7 +9,7 @@ export function Callback() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      navigate('/dashboard', { replace: true })
+      navigate('/', { replace: true })
     }
     if (!isLoading && error) {
       navigate('/', { replace: true })

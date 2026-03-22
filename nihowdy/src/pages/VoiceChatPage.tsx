@@ -46,7 +46,8 @@ export default function VoiceChatPage() {
   const [selectedLang, setSelectedLang] = useState('ja')
   const [selectedMission, setSelectedMission] = useState<Mission | undefined>(SAMPLE_MISSIONS[0])
   const [missionIndex, setMissionIndex] = useState(0)
-  const [key, setKey] = useState(0) // remount VoiceChat on lang/mission change
+  const [completedMissions, setCompletedMissions] = useState<Set<number>>(new Set())
+  const [key, setKey] = useState(0)
 
   const handleLangChange = (code: string) => {
     setSelectedLang(code)
@@ -59,109 +60,119 @@ export default function VoiceChatPage() {
     setKey((k) => k + 1)
   }
 
+  const handleMissionComplete = () => {
+    setCompletedMissions((prev) => new Set([...prev, missionIndex]))
+  }
+
   const langLabel = LANGUAGES.find((l) => l.code === selectedLang)?.label ?? selectedLang
 
-  return (
-    <div className="min-h-[calc(100vh-4rem)] bg-gray-950 text-gray-100">
-      <div className="mx-auto max-w-6xl px-4 py-8">
+  const getMissionTabClass = (idx: number) => {
+    const isSelected = missionIndex === idx
+    const isCompleted = completedMissions.has(idx)
 
-        {/* Header */}
-        <div className="mb-8 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600">
-            <Mic className="h-5 w-5 text-white" />
+    if (isCompleted) return 'bg-emerald-600 text-white'
+    if (isSelected) return 'bg-red-500 text-white'
+    return 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+  }
+
+  return (
+    <div className="space-y-6">
+
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600">
+          <Mic className="h-5 w-5 text-white" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Voice Practice</h1>
+          <p className="text-sm text-muted-foreground">Speak with an AI tutor in your target language</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
+
+        {/* Sidebar: controls */}
+        <div className="flex flex-col gap-4">
+
+          {/* Language picker */}
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              <Globe className="h-3.5 w-3.5" />
+              Language
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {LANGUAGES.map((lang) => (
+                <button
+                  key={lang.code}
+                  onClick={() => handleLangChange(lang.code)}
+                  className={`rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${
+                    selectedLang === lang.code
+                      ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-400/30'
+                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                  }`}
+                >
+                  {lang.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-white">Voice Practice</h1>
-            <p className="text-sm text-gray-400">Speak with an AI tutor in your target language</p>
+
+          {/* Mission picker */}
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              <BookOpen className="h-3.5 w-3.5" />
+              Mission
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {SAMPLE_MISSIONS.map((mission, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleMissionChange(idx)}
+                  className={`rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${getMissionTabClass(idx)}`}
+                >
+                  <span className="mr-1.5">
+                    {completedMissions.has(idx) ? '✅' : '🎯'}
+                  </span>
+                  {mission.description}
+                </button>
+              ))}
+              <button
+                onClick={() => { setSelectedMission(undefined); setKey((k) => k + 1) }}
+                className={`rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
+                  !selectedMission
+                    ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-400/30'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                }`}
+              >
+                <span className="mr-1.5">💬</span>
+                Free conversation
+              </button>
+            </div>
+          </div>
+
+          {/* Tips */}
+          <div className="rounded-2xl border border-border bg-card/50 p-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Tips</p>
+            <ul className="space-y-1.5 text-xs text-muted-foreground">
+              <li>🎙️ Tap the mic to start speaking</li>
+              <li>⚠️ Orange badges = pronunciation to work on</li>
+              <li>🔥 Complete faster for XP bonus</li>
+              <li>📚 Word bank tracks tricky words</li>
+            </ul>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
-
-          {/* Sidebar: controls */}
-          <div className="flex flex-col gap-4">
-
-            {/* Language picker */}
-            <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
-              <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-gray-500">
-                <Globe className="h-3.5 w-3.5" />
-                Language
-              </div>
-              <div className="flex flex-col gap-1.5">
-                {LANGUAGES.map((lang) => (
-                  <button
-                    key={lang.code}
-                    onClick={() => handleLangChange(lang.code)}
-                    className={`rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                      selectedLang === lang.code
-                        ? 'bg-indigo-600 text-white'
-                        : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                    }`}
-                  >
-                    {lang.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Mission picker */}
-            <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
-              <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-gray-500">
-                <BookOpen className="h-3.5 w-3.5" />
-                Mission
-              </div>
-              <div className="flex flex-col gap-1.5">
-                {SAMPLE_MISSIONS.map((mission, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleMissionChange(idx)}
-                    className={`rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
-                      missionIndex === idx
-                        ? 'bg-amber-900/60 border border-amber-700/50 text-amber-200'
-                        : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                    }`}
-                  >
-                    <span className="mr-1.5">🎯</span>
-                    {mission.description}
-                  </button>
-                ))}
-                <button
-                  onClick={() => { setSelectedMission(undefined); setKey((k) => k + 1) }}
-                  className={`rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
-                    !selectedMission
-                      ? 'bg-gray-700 text-gray-200'
-                      : 'text-gray-500 hover:bg-gray-800 hover:text-gray-400'
-                  }`}
-                >
-                  <span className="mr-1.5">💬</span>
-                  Free conversation
-                </button>
-              </div>
-            </div>
-
-            {/* Stats legend */}
-            <div className="rounded-2xl border border-gray-800 bg-gray-900/50 p-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-gray-600">Tips</p>
-              <ul className="space-y-1.5 text-xs text-gray-500">
-                <li>🎙️ Tap the mic to start speaking</li>
-                <li>⚠️ Orange badges = pronunciation to work on</li>
-                <li>🔥 Complete faster for XP bonus</li>
-                <li>📚 Word bank tracks tricky words</li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Main: VoiceChat component */}
-          <div className="flex justify-center">
-            <div className="w-full max-w-lg">
-              <VoiceChat
-                key={key}
-                language={selectedLang}
-                languageName={langLabel}
-                mission={selectedMission}
-                apiEndpoint="/api/voice"
-              />
-            </div>
+        {/* Main: VoiceChat component */}
+        <div className="flex justify-center">
+          <div className="w-full max-w-lg">
+            <VoiceChat
+              key={key}
+              language={selectedLang}
+              languageName={langLabel}
+              mission={selectedMission}
+              apiEndpoint="/api/voice"
+              onMissionComplete={handleMissionComplete}
+            />
           </div>
         </div>
       </div>
