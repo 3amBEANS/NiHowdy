@@ -13,7 +13,7 @@ type SettingsData = {
 
 const STORAGE_KEY = "nihowdy.settings";
 
-const LANGUAGE_OPTIONS = ["Chinese", "Spanish", "Russian", "Korean", "English"] as const;
+const LANGUAGE_OPTIONS = ["Mandarin", "Spanish", "Japanese", "French", "Korean", "English"] as const;
 const WEEK_DAYS = [
   "Sunday",
   "Monday",

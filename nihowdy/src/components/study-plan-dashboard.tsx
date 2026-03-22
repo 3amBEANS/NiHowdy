@@ -1,24 +1,30 @@
-
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useAuth0 } from "@auth0/auth0-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/Button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Calendar, 
-  Clock, 
-  Trophy, 
-  Flame, 
-  BookOpen, 
-  Headphones, 
-  PenTool, 
+import {
+  Calendar,
+  Clock,
+  Trophy,
+  Flame,
+  BookOpen,
+  Headphones,
+  PenTool,
   MessageCircle,
   ChevronRight,
   CheckCircle2,
-  
   Sparkles
 } from "lucide-react"
 import { cn } from "../lib/utils"
+
+type SettingsData = {
+  displayName?: string
+  learningLanguage?: string
+}
+
+const SETTINGS_KEY = "nihowdy.settings"
 
 const weeklyPlan = [
   {
@@ -78,7 +84,40 @@ const typeIcons: Record<string, React.ElementType> = {
 
 export function StudyPlanDashboard() {
   const [selectedDay, setSelectedDay] = useState(2) // Wednesday (today)
-  
+  const { user } = useAuth0()
+  const [settings, setSettings] = useState<SettingsData>({})
+
+  useEffect(() => {
+    const loadSettings = () => {
+      try {
+        const raw = localStorage.getItem(SETTINGS_KEY)
+        setSettings(raw ? (JSON.parse(raw) as SettingsData) : {})
+      } catch {
+        setSettings({})
+      }
+    }
+
+    loadSettings()
+    window.addEventListener("nihowdy:settings-updated", loadSettings)
+    window.addEventListener("storage", loadSettings)
+    return () => {
+      window.removeEventListener("nihowdy:settings-updated", loadSettings)
+      window.removeEventListener("storage", loadSettings)
+    }
+  }, [])
+
+  const displayName = useMemo(
+    () =>
+      settings.displayName?.trim() ||
+      user?.given_name ||
+      user?.name ||
+      user?.email?.split("@")[0] ||
+      "Learner",
+    [settings.displayName, user]
+  )
+
+  const preferredLanguage = settings.learningLanguage || "Spanish"
+
   const completedLessons = weeklyPlan.flatMap(d => d.lessons).filter(l => l.completed).length
   const totalLessons = weeklyPlan.flatMap(d => d.lessons).length
   const progressPercent = Math.round((completedLessons / totalLessons) * 100)
@@ -89,10 +128,10 @@ export function StudyPlanDashboard() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground gap-2">
-            Welcome back, <span className="text-primary">Chigga</span>
+            Welcome back, <span className="text-primary">{displayName}</span>
           </h1>
           <p className="mt-1 text-muted-foreground">
-            Continue your Spanish learning journey
+            Continue your {preferredLanguage} learning journey
           </p>
         </div>
         <Badge variant="secondary" className="w-fit gap-1.5 px-3 py-1.5 text-sm">
