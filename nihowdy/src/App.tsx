@@ -9,6 +9,7 @@ import { WeeklyPlan } from './components/weekly-plan'
 import AuthButtons from './components/auth-buttons'
 import AuthPage from './components/auth-page'
 import { Callback } from './components/callback'
+import TestPage from './components/test-page'
 
 function RequireAuth() {
   const { isAuthenticated, isLoading } = useAuth0()
@@ -42,6 +43,7 @@ function App() {
             <Route path="/weeklyPlan" element={<WeeklyPlan />} />
             <Route path="/voice-chat" element={<VoiceChatPage />} />
             <Route path="/video" element={<VideoLearningPage />} />
+            <Route path="/test-page" element={<TestPage />} />
           </Route>
         </Routes>
       </main>

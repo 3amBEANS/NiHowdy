@@ -181,12 +181,13 @@ export function WeeklyPlan() {
                             <span className="text-xs font-semibold hidden sm:block">Done</span>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2">
+                          <a href="/test-page" className="flex items-center gap-2">
                             <span className="text-xs font-semibold text-muted-foreground hidden sm:block">Start</span>
-                            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
-                          </div>
+                            <ChevronRight className="w-4 h-4 text-muted-foreground hover:text-foreground hover:translate-x-0.5 transition-all" />
+                          </a>
                         )}
                       </div>
+                        
                     </div>
                   )
                 })}
