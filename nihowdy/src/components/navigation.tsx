@@ -4,6 +4,7 @@ import { cn } from "../lib/utils"
 
 const navItems = [
   { href: "/", label: "Study Plan", icon: Calendar },
+  { href: "/WeeklyPlan", label: "Weekly Plan", icon: Calendar },
   { href: "/materials", label: "Materials", icon: Video },
 ]
 
@@ -17,7 +18,7 @@ export function Navigation() {
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
             <BookOpen className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="text-xl font-semibold text-foreground">Linguify</span>
+          <span className="text-xl font-semibold text-foreground">Nǐ Howdy</span>
         </Link>
 
         <nav className="flex items-center gap-1">
