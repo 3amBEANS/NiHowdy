@@ -10,6 +10,8 @@ import AuthPage from './components/auth-page'
 import { Callback } from './components/callback'
 import TestPage from './components/test-page'
 import SettingsPage from './components/settings-page'
+import ShortStoryPage from './components/short-story-page'
+import ArticlePage from "@/pages/article-page"
 
 function RequireAuth() {
   const { isAuthenticated, isLoading } = useAuth0()
@@ -44,6 +46,8 @@ function App() {
             <Route path="/video" element={<VideoLearningPage />} />
             <Route path="/test-page" element={<TestPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/stories" element={<ShortStoryPage />} />
+            <Route path="/articles" element={<ArticlePage />} />
           </Route>
         </Routes>
       </main>
