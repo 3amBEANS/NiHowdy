@@ -1,7 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
-import { BookOpen, Calendar, Video, User, Mic, Youtube } from "lucide-react";
+import {
+  BookOpen,
+  Calendar,
+  Video,
+  User,
+  Mic,
+  Youtube,
+  ChevronDown,
+  Settings,
+  LogOut,
+} from "lucide-react";
 import { cn } from "../lib/utils";
 
 const navItems = [
@@ -16,8 +26,10 @@ const SETTINGS_KEY = "nihowdy.settings";
 
 export default function Navigation() {
   const { pathname } = useLocation();
-  const { user } = useAuth0();
+  const { user, isAuthenticated, logout } = useAuth0();
   const [savedPhoto, setSavedPhoto] = useState("");
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadSavedPhoto = () => {
@@ -43,6 +55,22 @@ export default function Navigation() {
     return () => {
       window.removeEventListener("nihowdy:settings-updated", onSettingsUpdated);
       window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
+  useEffect(() => {
+    const onPointerDown = (e: MouseEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+
+    window.addEventListener("mousedown", onPointerDown);
+    window.addEventListener("keydown", onEsc);
+    return () => {
+      window.removeEventListener("mousedown", onPointerDown);
+      window.removeEventListener("keydown", onEsc);
     };
   }, []);
 
@@ -80,26 +108,64 @@ export default function Navigation() {
           })}
         </nav>
 
-        <div className="flex items-center gap-3">
-          <Link
-            to="/settings"
-            aria-label="Go to profile settings"
-            title="Profile settings"
-            className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-full bg-accent transition-colors",
-              pathname === "/settings" && "ring-2 ring-primary ring-offset-2 ring-offset-background"
-            )}
-          >
-            {avatarSrc ? (
-              <img
-                src={avatarSrc}
-                alt="Profile"
-                className="h-9 w-9 rounded-full object-cover"
-              />
-            ) : (
-              <User className="h-4 w-4 text-accent-foreground" />
-            )}
-          </Link>
+        <div className="relative flex items-center gap-3" ref={menuRef}>
+          {isAuthenticated && (
+            <>
+              <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                className={cn(
+                  "flex items-center gap-1 rounded-full p-0.5 transition",
+                  open && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                )}
+                aria-haspopup="menu"
+                aria-expanded={open}
+                aria-label="Profile menu"
+              >
+                {avatarSrc ? (
+                  <img
+                    src={avatarSrc}
+                    alt="Profile"
+                    className="h-9 w-9 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent">
+                    <User className="h-4 w-4 text-accent-foreground" />
+                  </div>
+                )}
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              </button>
+
+              {open && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-12 w-44 rounded-lg border bg-popover p-1 shadow-md"
+                >
+                  <Link
+                    to="/settings"
+                    onClick={() => setOpen(false)}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
+                    role="menuitem"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      logout({ logoutParams: { returnTo: window.location.origin } })
+                    }
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-accent"
+                    role="menuitem"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </header>

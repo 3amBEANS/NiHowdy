@@ -6,7 +6,6 @@ import MaterialsContent from '@/components/materials-content'
 import VoiceChatPage from '@/pages/VoiceChatPage'
 import VideoLearningPage from '@/pages/VideoLearningPage'
 import { WeeklyPlan } from './components/weekly-plan'
-import AuthButtons from './components/auth-buttons'
 import AuthPage from './components/auth-page'
 import { Callback } from './components/callback'
 import TestPage from './components/test-page'
@@ -29,7 +28,6 @@ function App() {
 
       <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
         <div className="mb-4 flex justify-end">
-          <AuthButtons />
         </div>
 
         <Routes>
