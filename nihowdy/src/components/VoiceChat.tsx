@@ -400,10 +400,10 @@ export function VoiceChat({
           style={{
             backgroundColor: missionDone && quizPhase === 'none'
               ? 'rgb(17,53,37)'
-              : 'rgb(244, 67, 54)',
+              : 'rgba(49,46,129,0.6)',
             borderColor: missionDone && quizPhase === 'none'
               ? 'rgba(34,197,94,0.4)'
-              : 'rgba(99,102,241,0.4)',
+              : 'rgba(99,102,241,0.5)',
           }}
           className="rounded-2xl p-4 border transition-all duration-500"
         >

@@ -71,7 +71,7 @@ export default function VoiceChatPage() {
     const isCompleted = completedMissions.has(idx)
 
     if (isCompleted) return 'bg-emerald-600 text-white'
-    if (isSelected) return 'bg-red-500 text-white'
+    if (isSelected) return 'bg-indigo-500 text-white'
     return 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
   }
 
